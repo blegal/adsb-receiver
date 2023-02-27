@@ -6,7 +6,13 @@
 
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd.h>
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 class ReceiverUSRP : public Receiver{
 private :
 	uhd::usrp::multi_usrp::sptr usrp;              // Le pointeur vers l'USRP
@@ -25,5 +31,11 @@ public :
     void set_rx_gain(const float gain_value);
 
 };
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 #endif

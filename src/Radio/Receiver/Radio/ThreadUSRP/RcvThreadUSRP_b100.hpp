@@ -8,7 +8,13 @@
 #include <uhd.h>
 #include <thread>
 #include <mutex>
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 class RcvThreadUSRP_b100 : public Receiver{
 private :
 	uhd::usrp::multi_usrp::sptr usrp;              // Le pointeur vers l'USRP
@@ -37,5 +43,11 @@ private:
     virtual void fetch_values();
 
 };
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 #endif

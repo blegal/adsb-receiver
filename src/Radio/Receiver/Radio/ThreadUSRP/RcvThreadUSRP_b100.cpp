@@ -6,7 +6,13 @@
 #include <future>
 #include <string>
 #include <mutex>
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 RcvThreadUSRP_b100::RcvThreadUSRP_b100(float s_fc, float s_fe) : Receiver(s_fc, s_fe), cthread(&RcvThreadUSRP_b100::fetch_values, this)
 {
     acq_ready = false;
@@ -17,14 +23,24 @@ RcvThreadUSRP_b100::RcvThreadUSRP_b100(float s_fc, float s_fe) : Receiver(s_fc, 
     string usrp_addr("type=b100");                 // L'adresse de l'USRP est écrite en dur pour l'instant
     usrp = uhd::usrp::multi_usrp::make(usrp_addr); // Initialisation de l'USRP
 }
-
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 RcvThreadUSRP_b100::~RcvThreadUSRP_b100()
 {
     usrp.reset();
 }
-
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 void RcvThreadUSRP_b100::initialize(){
     usrp->set_clock_source("internal");
 	usrp->set_rx_rate(fe);                         // Set de la fréquence d'échantillonnage
@@ -45,8 +61,13 @@ void RcvThreadUSRP_b100::initialize(){
     cout << "[Thread-USRP] #channels for rx_stream      : " << rx_stream->get_num_channels() << " channel(s)" << endl;
     cout << "[Thread-USRP] #samples in rx_stream buffer : " << rx_stream->get_max_num_samps() << " IQs" << endl;
 }
-
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 void RcvThreadUSRP_b100::fetch_values()
 {
     mutex_acq.lock();
@@ -80,8 +101,13 @@ void RcvThreadUSRP_b100::fetch_values()
         mutex_read.unlock();
     }
 }
-
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 bool RcvThreadUSRP_b100::reception(vector<complex<float> >& buffer, const uint32_t coverage)
 {
     const uint32_t nOffset  = buffer.size() - coverage;
@@ -113,31 +139,58 @@ bool RcvThreadUSRP_b100::reception(vector<complex<float> >& buffer, const uint32
 
     return _alive;
 }
-
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 void RcvThreadUSRP_b100::reset()
 {
 	usrp.reset();
 }
-
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 void RcvThreadUSRP_b100::start_engine()
 {
     std::cout << "[ Thread-USRP engine begin  ]" << std::endl;
     usrp->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
 }
-
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 void RcvThreadUSRP_b100::stop_engine()
 {
     std::cout << "[ Thread-USRP engine end ]" << std::endl;
     usrp->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     rx_stream.reset();
 }
-
-
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 void RcvThreadUSRP_b100::set_rx_gain(const float gain_value)
 {
     usrp->set_rx_gain(gain_value);
     std::cout << "[ Thread-USRP: Changing reception gain : " << usrp->get_rx_gain() << " dB ]" << std::endl;
 }
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+//
+//

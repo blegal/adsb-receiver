@@ -60,7 +60,9 @@ using namespace std;
 
 bool isFinished = false;
 
-void my_ctrl_c_handler(int s) {
+
+void my_ctrl_c_handler(int s)
+{
     if (isFinished == true) {
         exit(EXIT_FAILURE);
     }
@@ -774,7 +776,13 @@ int main(int argc, char *argv[])
                             nbStrangeFrames += 1;
                             continue;
                         }
-
+                        //
+                        //
+                        //
+                        ////////////////////////////////////////////////////////////////////
+                        //
+                        //
+                        //
                         Avion *ptr_avion = liste_m[oaci_value];
                         if (ptr_avion == nullptr) {
                             ptr_avion = new Avion(oaci_value);
@@ -783,7 +791,13 @@ int main(int argc, char *argv[])
                         }
                         ptr_avion->update();
                         ptr_avion->set_score( score );
-
+                        //
+                        //
+                        //
+                        ////////////////////////////////////////////////////////////////////
+                        //
+                        //
+                        //
                         if ((type_frame >= 1) && (type_frame <= 4))
                         {
                             const int32_t type_airc    = pack_bits(vec_sync.data() + 37, 3);
@@ -814,7 +828,13 @@ int main(int argc, char *argv[])
                             ptr_avion->set_type(typeAricraft);
                             ptr_avion->set_name(caractere);
                         }
-
+                        //
+                        //
+                        //
+                        ////////////////////////////////////////////////////////////////////
+                        //
+                        //
+                        //
                         if ((type_frame >= 5) && (type_frame <= 8) )
                         {
                             if (dump_decoded_frame && (dump_resume == false))
@@ -822,7 +842,13 @@ int main(int argc, char *argv[])
                             if( file_frames_dec != nullptr )
                                 fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame);
                         }
-
+                        //
+                        //
+                        //
+                        ////////////////////////////////////////////////////////////////////
+                        //
+                        //
+                        //
                         if ((type_frame >= 9) && (type_frame <= 18) )
                         {
                             const int32_t upper = pack_bits(vec_sync.data() + 40, 7);
@@ -834,7 +860,7 @@ int main(int argc, char *argv[])
                             //
                             // On extrait les informations de la trame
                             //
-                            const int32_t CPR_format = pack_bits(vec_sync.data() + 53, 1);
+                            const int32_t CPR_format = pack_bits      (vec_sync.data() + 53,  1);
                             const float f_latitude   = pack_bits_float(vec_sync.data() + 54, 17);//(float)enc_latitude  / 131072.0; // divise par 2^17
                             const float f_longitude  = pack_bits_float(vec_sync.data() + 71, 17);//(float)enc_longitude / 131072.0; // divise par 2^17
 
@@ -861,7 +887,13 @@ int main(int argc, char *argv[])
                             ptr_avion->set_longitude(final_lon);
                             ptr_avion->update_distance();
                         }
-#if 1
+                        //
+                        //
+                        //
+                        ////////////////////////////////////////////////////////////////////
+                        //
+                        //
+                        //
                         if (type_frame == 19)
                         {
                             if ((vec_demod[39 + 6] == 0) & (vec_demod[39 + 7] == 0) & (vec_demod[39 + 8] == 1)) {
@@ -905,8 +937,13 @@ int main(int argc, char *argv[])
                                 ptr_avion->set_angle(angle);
                             }
                         }
-#endif
-#if 1
+                        //
+                        //
+                        //
+                        ////////////////////////////////////////////////////////////////////
+                        //
+                        //
+                        //
                         if ((type_frame >= 20) && (type_frame <= 22) )
                         {
                             int32_t altitude = 0;
@@ -935,7 +972,13 @@ int main(int argc, char *argv[])
                             ptr_avion->set_longitude(final_lon);
                             ptr_avion->update_distance();
                         }
-#endif
+                        //
+                        //
+                        //
+                        ////////////////////////////////////////////////////////////////////
+                        //
+                        //
+                        //
                         if ((type_frame >= 23) && (type_frame <= 27))
                         {
                             if (dump_decoded_frame && (dump_resume == false))
@@ -943,7 +986,13 @@ int main(int argc, char *argv[])
                             if( file_frames_dec != nullptr )
                                 fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame);
                         }
-
+                        //
+                        //
+                        //
+                        ////////////////////////////////////////////////////////////////////
+                        //
+                        //
+                        //
                         if (type_frame == 28)
                         {
                             if (dump_decoded_frame && (dump_resume == false))
@@ -951,7 +1000,13 @@ int main(int argc, char *argv[])
                             if( file_frames_dec != nullptr )
                                 fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame);
                         }
-
+                        //
+                        //
+                        //
+                        ////////////////////////////////////////////////////////////////////
+                        //
+                        //
+                        //
                         if (type_frame == 29)
                         {
                             if (dump_decoded_frame && (dump_resume == false))
@@ -959,7 +1014,13 @@ int main(int argc, char *argv[])
                             if( file_frames_dec != nullptr )
                                 fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame);
                         }
-
+                        //
+                        //
+                        //
+                        ////////////////////////////////////////////////////////////////////
+                        //
+                        //
+                        //
                         if (type_frame == 31)
                         {
                             if (dump_decoded_frame && (dump_resume == false))
@@ -1015,49 +1076,27 @@ int main(int argc, char *argv[])
 
         acq_counter += 1;
 
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////
+        //
         //
         // Tous les x secondes on affiche la liste des avions qui ont été actifs durant les y dernieres
         // secondes dans le terminal, cela permet d'avoir une vue d'ensemble des trames actuellement recues...
         //
-
-        //////////////////////////////////////////////////////////////////////////////////////////////////
         //
-        //
-        if ( (acq_counter % acq_per_sec) == 0 ) // début du stockage temps reel des données
+        if ( (acq_counter % acq_per_sec) == 0 )
         {
             dump_relatime.update( liste_v );
-#if 0
-            const int nPlanes = liste_v.size();
-            FILE* rt = fopen( "/tmp/avions.gps", "w" );
-            if( rt == NULL )
-            {
-                printf("(EE) An error occurs when openning the /tmp/avions.gps file !\n");
-                exit( EXIT_FAILURE );
-            }
-
-            for (int p = 0; p < nPlanes; p += 1)
-            {
-                if( (liste_v.at(p)->last_update() > 600) || (liste_v.at(p)->get_messages() == 1) )
-                    continue;
-
-                const int nLon = liste_v.at(p)->list_long.size();
-                const int nLat = liste_v.at(p)->list_lat.size();
-
-                for (int t = 0; t < nLon; t += 1)
-                {
-                    const float lon = liste_v.at(p)->list_long.at(t);
-                    const float lat = liste_v.at(p)->list_lat.at(t);
-                    fprintf(rt, "%+24.22f %+24.22f %d\n", lat, lon, p);
-                }
-            }
-            fclose( rt );
-#endif
-        } // fin du stockage temps reel des données
+        }
         //
         //
         //////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////
+        //
+        //
         if (
                 (dump_resume == true) && ( (acq_counter % acq_per_sec == 0)
              || (!radio->alive())
@@ -1089,9 +1128,11 @@ int main(int argc, char *argv[])
                         liste_v.at(i)->print();
             }
         }
-
-
     }
+    //
+    //
+    //////////////////////////////////////////////////////////////////////////////////////////////////
+
 
     //
     // https://mobisoftinfotech.com/tools/plot-multiple-points-on-map/

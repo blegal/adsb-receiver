@@ -10,7 +10,6 @@
 //
 //
 //
-
 ReceiverThreadUSRP::ReceiverThreadUSRP(float s_fc, float s_fe) : Receiver(s_fc, s_fe), cthread(&ReceiverThreadUSRP::fetch_values, this)
 {
     acq_ready = false;

@@ -370,7 +370,7 @@ float ComputeLongitude(const float f_longitude, const float final_lat, const flo
     {
         Dlon = 0;
     }
-    const float m   = floor(ref_longitude/Dlon) + floor(0.5 + cprMod(ref_longitude, Dlon)/Dlon - f_longitude);
+    const float m         = floor(ref_longitude/Dlon) + floor(0.5 + cprMod(ref_longitude, Dlon)/Dlon - f_longitude);
     const float final_lon = Dlon*(m + f_longitude);
     return final_lon;
 }
