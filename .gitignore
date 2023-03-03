@@ -31,6 +31,6 @@
 *.out
 *.app
 
-build
-.idea
 .DS_Store
+build/*
+samples/*
