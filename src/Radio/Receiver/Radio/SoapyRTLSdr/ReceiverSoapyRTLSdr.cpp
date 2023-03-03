@@ -176,15 +176,15 @@ bool ReceiverSoapyRTLSdr::reception( std::vector< std::complex<float> >& cbuffer
     // Fin de la gestion du vieillissement du buffer
     //
 
-    uint32_t to_read = cbuffer.size();
-    uint32_t nb_read = coverage;
+    int to_read = cbuffer.size();
+    int nb_read = coverage;
     std::complex<float>* buff = cbuffer.data();
 
     int flags;
     long long time_ns;
     do{
         void *buffs[]  = {buff + nb_read};
-        uint32_t nRead = sdr->readStream( rx_stream, buffs, to_read - nb_read, flags, time_ns, 1000000);
+        int nRead = sdr->readStream( rx_stream, buffs, to_read - nb_read, flags, time_ns, 1000000);
         if( nRead < 0 ) exit( EXIT_FAILURE );
         nb_read       += nRead;
         if( nb_read != to_read ){
@@ -193,7 +193,7 @@ bool ReceiverSoapyRTLSdr::reception( std::vector< std::complex<float> >& cbuffer
     }while( (to_read - nb_read) != 0 );
 
 #if 1
-    for(uint32_t i = 0; i < to_read; i += 1)
+    for(int i = 0; i < to_read; i += 1)
         buff[i] *= 127.0f;
 #else
     float* pbuff = (float *)cbuffer.data();

@@ -136,6 +136,21 @@ void Avion::set_longitude(const float value)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+int Avion::get_reliability()
+{
+    if( list_crc.size() != 0 )
+        return list_crc.at( list_crc.size() - 1 );
+    else
+        return 0;
+}
+
+void Avion::set_reliability(const int value)
+{
+    list_crc.push_back( value );
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 float Avion::get_score()
 {
     return last_score;

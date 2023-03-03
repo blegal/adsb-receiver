@@ -24,7 +24,8 @@ private:
 public:
     ExportRealTime(const bool _enable);
 
-    void update( std::vector<Avion*>& liste_v );
+    void update    ( std::vector<Avion*>& liste_v );
+    void update_all( std::vector<Avion*>& liste_v );
 };
 
 #endif

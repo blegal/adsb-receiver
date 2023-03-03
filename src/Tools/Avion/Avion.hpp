@@ -35,8 +35,9 @@ private:
     bool modified;
 
 public:
-    std::vector<float> list_long;
-    std::vector<float> list_lat;
+    std::vector<float>  list_long;
+    std::vector<float>  list_lat;
+    std::vector<int8_t> list_crc; // validated with/without brute force
 
     float lon_odd;      // ODD and EVEN positions
     float lat_odd;      // of the planes used to
@@ -75,6 +76,11 @@ public:
 
     void  set_longitude(const float value);
     float get_longitude();
+
+    /////////////////////////////////////////////////////////////////////////////
+
+    void  set_reliability(const int value);
+    int   get_reliability();
 
     /////////////////////////////////////////////////////////////////////////////
 

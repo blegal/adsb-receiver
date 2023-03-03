@@ -20,9 +20,9 @@ public:
 
     ~RingBuff();
 
-    uint32_t Write(const int8_t* buff, uint32_t numBytes);
+    uint32_t Write(const int8_t* buff, int numBytes);
 
-    uint32_t Read(int8_t* buff, uint32_t numBytes);
+    uint32_t Read(int8_t* buff, int numBytes);
 
     void Clear();
 

@@ -36,27 +36,27 @@ RingBuff::~RingBuff()
 }
 
 
-uint32_t RingBuff::Write(const int8_t *buff, uint32_t numBytes)
+uint32_t RingBuff::Write(const int8_t *buff, int numBytes)
 {
     //
     //  Nombre de données que l'on peut copier directement (memcpy)
     //
-    const int32_t direct_space = capacity - headPos;
+    const int direct_space = capacity - headPos;
     if( numBytes <= direct_space )
     {
         int8_t* ptr = this->buffMemPtr + headPos;
-        for(int32_t i = 0; i < numBytes; i += 1)
+        for(int i = 0; i < (int)numBytes; i += 1)
             ptr[i] = buff[i];
         headPos += numBytes;
     }
     else
     {
         int8_t* ptr_1 = this->buffMemPtr + headPos;
-        for(int32_t i = 0; i < direct_space; i += 1)
+        for(int i = 0; i < direct_space; i += 1)
             ptr_1[i] = buff[i];
 
         int8_t* ptr_2 = this->buffMemPtr;
-        for(int32_t i = 0; i < (numBytes-direct_space); i += 1)
+        for(int i = 0; i < (int)(numBytes-direct_space); i += 1)
             ptr_2[i] = buff[i+direct_space];
 
         headPos = (headPos + numBytes) % capacity;
@@ -68,27 +68,27 @@ uint32_t RingBuff::Write(const int8_t *buff, uint32_t numBytes)
 }
 
 
-uint32_t RingBuff::Read(int8_t *buff, uint32_t numBytes)
+uint32_t RingBuff::Read(int8_t *buff, int numBytes)
 {
     //
     //  Nombre de données que l'on peut copier directement (memcpy)
     //
-    const int32_t direct_space = capacity - tailPos;
+    const int direct_space = capacity - tailPos;
     if( numBytes <= direct_space )
     {
         const int8_t* ptr = this->buffMemPtr + tailPos;
-        for(int32_t i = 0; i < numBytes; i += 1)
+        for(int i = 0; i < (int)numBytes; i += 1)
             buff[i] = ptr[i];
         tailPos += numBytes;
     }
     else
     {
         const int8_t* ptr_1 = this->buffMemPtr + tailPos;
-        for(int32_t i = 0; i < direct_space; i += 1)
+        for(int i = 0; i < direct_space; i += 1)
             buff[i] = ptr_1[i];
 
         const int8_t* ptr_2 = this->buffMemPtr;
-        for(int32_t i = 0; i < (numBytes-direct_space); i += 1)
+        for(int i = 0; i < (int)(numBytes-direct_space); i += 1)
             buff[i+direct_space] = ptr_2[i];
 
         tailPos = (tailPos + numBytes) % capacity;

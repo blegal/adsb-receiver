@@ -848,7 +848,8 @@ int main(int argc, char *argv[])
                 o_pack.execute(vec_sync,  vec_pack);     // 15 octets
 
                 bool crc_is_ok = check_crc  <112 / 8>( vec_pack.data() );
-                if( crc_is_ok ) stats.validated_crc_init();
+                if( crc_is_ok )
+                    stats.validated_crc_init();
 
                 //
                 // On stocke les données pour une utilisation ultérieure
@@ -897,7 +898,7 @@ int main(int argc, char *argv[])
                     if( verbose >= 1 )
                     {
                         printf("  [");
-                        for(int32_t i = 0; i < vec_sync.size(); i += 1)
+                        for(int32_t i = 0; i < (int)vec_sync.size(); i += 1)
                             printf("%d ", vec_sync[i] );
                         printf("];\n");
                     }
@@ -1057,10 +1058,12 @@ int main(int argc, char *argv[])
                             if( file_frames_dec != nullptr )
                                 fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist);
 
-                            ptr_avion->set_altitude (altitude);
-                            ptr_avion->set_GNSS_mode(false);
-                            ptr_avion->set_latitude (final_lat);
-                            ptr_avion->set_longitude(final_lon);
+                            ptr_avion->set_altitude   (altitude);
+                            ptr_avion->set_GNSS_mode  (false);
+                            ptr_avion->set_latitude   (final_lat);
+                            ptr_avion->set_longitude  (final_lon);
+                            ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );
+                            
                             ptr_avion->update_distance();
                         }
                         //
@@ -1157,6 +1160,7 @@ int main(int argc, char *argv[])
                             ptr_avion->set_GNSS_mode(true);
                             ptr_avion->set_latitude (final_lat);
                             ptr_avion->set_longitude(final_lon);
+                            ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );
                             ptr_avion->update_distance();
                         }
                         //
@@ -1233,7 +1237,7 @@ int main(int argc, char *argv[])
                         printf("\n");
 #endif
                     } else {
-                        for (int i = 0; i < vec_demod.size(); i += 1) {
+                        for (int i = 0; i < (int)vec_demod.size(); i += 1) {
                                  if (i ==  8) printf(" ");
                             else if (i == 13) printf(" ");
                             else if (i == 16) printf(" ");
@@ -1290,25 +1294,11 @@ int main(int argc, char *argv[])
            )
         {
             printf("\e[1;1H\e[2J");
-            /*
-            const auto stop = std::chrono::system_clock::now();
-            const int32_t eTime = chrono::duration_cast<chrono::seconds>(stop - start).count();
-            std::cout << "Application runtime : " << eTime << " seconds"
-                      << std::endl;
-            std::cout << "Number of frames over the detection value      : " << nbTramesDetectees << std::endl;
-            std::cout << "Number of frames with validated CRC value      : " << nbBonsCRCs        << std::endl;
-            std::cout << " - Number of initially correct  CRC values     : " << nbBonsCRC_init    << std::endl;
-            std::cout << " - Number of saved frames with bit-flip (x1)   : " << nbBonsCRCs_1x     << std::endl;
-            std::cout << " - Number of saved frames with bit-flip (x2)   : " << nbBonsCRCs_2x     << std::endl;
-            std::cout << " - Number of saved frames with bit-flip (x3)   : " << nbBonsCRCs_3x     << std::endl;
-            std::cout << "Number of discarded frames with DF = 18        : " << nbDF18Frames      << " (type == 18)" <<std::endl;
-            std::cout << "Number of discarded frames with strange values : " << nbStrangeFrames   << " (type != 17 && type != 18)" <<std::endl;
-            */
             std::cout << std::endl;
             printf("OACI   | TYPE   | NAME     | CORR. SCORE       |  LATITUDE | LONGITUDE | H.SPEED   | V.SPEED   | ANGLE | TYPE | ALTITUDE  | DISTANCE [min,max] | FRAMES | LAST     |\n");
             printf("-------+--------+----------+-------------------+-----------+-----------+-----------+-----------+-------+------+-----------+--------------------+--------+----------|\n");
 
-            for (int i = 0; i < liste_v.size(); i += 1)
+            for (int i = 0; i < (int)liste_v.size(); i += 1)
             {
                 if( liste_v.at(i)->get_messages() > 1 )         // Pour filter les bétises...
                     if( liste_v.at(i)->last_update() < 600 )    // On n'affiche que les avions des 10 dernieres minutes
@@ -1392,6 +1382,16 @@ int main(int argc, char *argv[])
         }
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////
+    //
+    //
+    if ( (acq_counter % acq_per_sec) == 0 )
+    {
+        dump_relatime.update( liste_v );
+    }
+    //
+    //////////////////////////////////////////////////////////////////////////////////////////////////
+
     //
     // Affichage des statistiques d'execution
     //
@@ -1403,8 +1403,8 @@ int main(int argc, char *argv[])
 
     std::cout << "(II)" << std::endl;
     std::cout << "(II) Nombre d'aquisition réalisées  : " << acq_counter << std::endl;
-    std::cout << "(II) Temps moyen par acquisition    : " << avgTime << " ms" << std::endl;
-    std::cout << "(II) Constrainte tps réel / iter    : " << RTConstr << " ms" << std::endl;
+    std::cout << "(II) Temps moyen par acquisition    : " << avgTime     << " ms" << std::endl;
+    std::cout << "(II) Constrainte tps réel / iter    : " << RTConstr    << " ms" << std::endl;
 
     stats.dump();
 
