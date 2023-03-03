@@ -93,12 +93,13 @@ set(SOURCE_FILES
         ./src/Tools/Avion/type_aircraft.cpp
 
         ./src/Tools/Parameters/Parameters.cpp
-        ./src/Tools/CTickCounter/CTickCounter.cpp
 
         ./src/Tools/Conversion/cvt_float_i8.cpp
         ./src/Tools/Conversion/cvt_float_u8.cpp
         ./src/Tools/Conversion/cvt_u8_float.cpp
         ./src/Tools/Conversion/cvt_i8_float.cpp
+
+        ./src/Tools/Statistiques/Statistiques.cpp
 
         ./src/rcv_adsb.cpp
         )

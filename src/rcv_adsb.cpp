@@ -20,7 +20,7 @@
 #include "Tools/Avion/type_aircraft.hpp"
 
 #include "Tools/Parameters/Parameters.hpp"
-#include "Tools/CTickCounter/CTickCounter.hpp"
+#include "Tools/Statistiques/Statistiques.hpp"
 
 #include "Radio/Receiver/Library/ReceiverLibrary.hpp"
 
@@ -81,6 +81,47 @@ bool compareLLRs(const LLR a, const LLR b)
     return a.value < b.value;
 }
 
+int decode_ac12_field(const unsigned char *msg)
+{
+    int q_bit = msg[5] & 1;
+    if (q_bit) {
+        // N is the 11 bit integer resulting from the removal of bit Q
+        //*unit = MODE_S_UNIT_FEET;
+        int n = ((msg[5] >> 1) << 4) | ((msg[6] & 0xF0) >> 4);
+        // The final altitude is due to the resulting number multiplied by 25,
+        // minus 1000.
+        return n * 25 - 1000;
+    } else {
+        return 0;
+    }
+}
+
+// Decode the 13 bit AC altitude field (in DF 20 and others). Returns the
+// altitude, and set 'unit' to either MODE_S_UNIT_METERS or MDOES_UNIT_FEETS.
+int decode_ac13_field(const unsigned char *msg)
+{
+    int m_bit = msg[3] & (1<<6);
+    int q_bit = msg[3] & (1<<4);
+    if (!m_bit)
+    {
+        if (q_bit) {
+            // N is the 11 bit integer resulting from the removal of bit Q and M
+            int n = ((msg[2]&31)<<6) |
+                    ((msg[3]&0x80)>>2) |
+                    ((msg[3]&0x20)>>1) |
+                    (msg[3]&15);
+            // The final altitude is due to the resulting number multiplied by
+            // 25, minus 1000.
+            return n*25-1000;
+        } else {
+            // TODO: Implement altitude where Q=0 and M=0
+        }
+    } else {
+        //*unit = MODE_S_UNIT_METERS;
+        // TODO: Implement altitude when meter unit is selected.
+    }
+    return 0;
+}
 
 /*   ============================== MAIN =========================== */
 /*
@@ -162,14 +203,152 @@ bool try_brute_force_llrs(vector<uint8_t>& vec_pack, vector<uint8_t>& vec_demod,
 }
 
 
+/* This algorithm comes from:
+ * http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html.
+ *
+ *
+ * A few remarks:
+ * 1) 131072 is 2^17 since CPR latitude and longitude are encoded in 17 bits.
+ * 2) We assume that we always received the odd packet as last packet for
+ *    simplicity. This may provide a position that is less fresh of a few
+ *    seconds.
+ */
+/* Always positive MOD operation, used for CPR decoding. */
+int cprModFunction(int a, int b) {
+    int res = a % b;
+    if (res < 0) res += b;
+    return res;
+}
+/* The NL function uses the precomputed table from 1090-WP-9-14 */
+int cprNLFunction(double lat) {
+    if (lat < 0) lat = -lat; /* Table is simmetric about the equator. */
+    if (lat < 10.47047130) return 59;
+    if (lat < 14.82817437) return 58;
+    if (lat < 18.18626357) return 57;
+    if (lat < 21.02939493) return 56;
+    if (lat < 23.54504487) return 55;
+    if (lat < 25.82924707) return 54;
+    if (lat < 27.93898710) return 53;
+    if (lat < 29.91135686) return 52;
+    if (lat < 31.77209708) return 51;
+    if (lat < 33.53993436) return 50;
+    if (lat < 35.22899598) return 49;
+    if (lat < 36.85025108) return 48;
+    if (lat < 38.41241892) return 47;
+    if (lat < 39.92256684) return 46;
+    if (lat < 41.38651832) return 45;
+    if (lat < 42.80914012) return 44;
+    if (lat < 44.19454951) return 43;
+    if (lat < 45.54626723) return 42;
+    if (lat < 46.86733252) return 41;
+    if (lat < 48.16039128) return 40;
+    if (lat < 49.42776439) return 39;
+    if (lat < 50.67150166) return 38;
+    if (lat < 51.89342469) return 37;
+    if (lat < 53.09516153) return 36;
+    if (lat < 54.27817472) return 35;
+    if (lat < 55.44378444) return 34;
+    if (lat < 56.59318756) return 33;
+    if (lat < 57.72747354) return 32;
+    if (lat < 58.84763776) return 31;
+    if (lat < 59.95459277) return 30;
+    if (lat < 61.04917774) return 29;
+    if (lat < 62.13216659) return 28;
+    if (lat < 63.20427479) return 27;
+    if (lat < 64.26616523) return 26;
+    if (lat < 65.31845310) return 25;
+    if (lat < 66.36171008) return 24;
+    if (lat < 67.39646774) return 23;
+    if (lat < 68.42322022) return 22;
+    if (lat < 69.44242631) return 21;
+    if (lat < 70.45451075) return 20;
+    if (lat < 71.45986473) return 19;
+    if (lat < 72.45884545) return 18;
+    if (lat < 73.45177442) return 17;
+    if (lat < 74.43893416) return 16;
+    if (lat < 75.42056257) return 15;
+    if (lat < 76.39684391) return 14;
+    if (lat < 77.36789461) return 13;
+    if (lat < 78.33374083) return 12;
+    if (lat < 79.29428225) return 11;
+    if (lat < 80.24923213) return 10;
+    if (lat < 81.19801349) return 9;
+    if (lat < 82.13956981) return 8;
+    if (lat < 83.07199445) return 7;
+    if (lat < 83.99173563) return 6;
+    if (lat < 84.89166191) return 5;
+    if (lat < 85.75541621) return 4;
+    if (lat < 86.53536998) return 3;
+    if (lat < 87.00000000) return 2;
+    else return 1;
+}
+
+int cprNFunction(double lat, int isodd) {
+    int nl = cprNLFunction(lat) - isodd;
+    if (nl < 1) nl = 1;
+    return nl;
+}
+
+double cprDlonFunction(double lat, int isodd) {
+    return 360.0 / cprNFunction(lat, isodd);
+}
+
+void decodeCPR(
+        int even_cprlat,
+        int odd_cprlat,
+        int even_cprlon,
+        int odd_cprlon,
+        int even_cprtime,
+        int odd_cprtime,
+        int &lon,
+        int &lat
+)
+{
+    const double AirDlat0 = 360.0 / 60;
+    const double AirDlat1 = 360.0 / 59;
+
+    double lat0 = even_cprlat;
+    double lat1 = odd_cprlat;
+    double lon0 = even_cprlon;
+    double lon1 = odd_cprlon;
+
+    /* Compute the Latitude Index "j" */
+    int j = floor(((59*lat0 - 60*lat1) / 131072) + 0.5);
+    double rlat0 = AirDlat0 * (cprModFunction(j,60) + lat0 / 131072);
+    double rlat1 = AirDlat1 * (cprModFunction(j,59) + lat1 / 131072);
+
+    if (rlat0 >= 270) rlat0 -= 360;
+    if (rlat1 >= 270) rlat1 -= 360;
+
+    /* Check that both are in the same latitude zone, or abort. */
+    if (cprNLFunction(rlat0) != cprNLFunction(rlat1)) return;
+
+    /* Compute ni and the longitude index m */
+    if (even_cprtime > odd_cprtime){
+        /* Use even packet. */
+        int ni = cprNFunction(rlat0,0);
+        int m = floor((((lon0 * (cprNLFunction(rlat0)-1)) -
+                        (lon1 * cprNLFunction(rlat0))) / 131072) + 0.5);
+        lon = cprDlonFunction(rlat0,0) * (cprModFunction(m,ni)+lon0/131072);
+        lat = rlat0;
+    } else {
+        /* Use odd packet. */
+        int ni = cprNFunction(rlat1,1);
+        int m = floor((((lon0 * (cprNLFunction(rlat1)-1)) -
+                        (lon1 * cprNLFunction(rlat1))) / 131072.0) + 0.5);
+        lon = cprDlonFunction(rlat1,1) * (cprModFunction(m,ni)+lon1/131072);
+        lat = rlat1;
+    }
+    if (lon > 180) lon -= 360;
+}
 
 
 int main(int argc, char *argv[])
 {
-    printf("==================================== ADSB ====================================");
-    printf("par Florian LOUPIAS - Février 2020\n"         );
-    printf("par Bertrand LE GAL - Octobre 2020 -> .....\n");
-    printf("==================================== ADSB ====================================");
+    printf("(II) ==================================== ADSB ====================================\n");
+    printf("(II)  par Florian LOUPIAS - Février 2020\n"         );
+    printf("(II)  par Bertrand LE GAL - Octobre 2020 -> .....\n");
+    printf("(II) ==================================== ADSB ====================================\n");
 
     //
     // Precomputing the CRC tables to speed-up the computations
@@ -210,16 +389,6 @@ int main(int argc, char *argv[])
 
     int buffer_size = 65536;
 
-    int nbTramesDetectees = 0; // nbre trame ...
-    int nbBonsCRCs      = 0;
-    int nbBonsCRC_init  = 0;
-    int nbBonsCRCs_1x   = 0;
-    int nbBonsCRCs_2x   = 0;
-    int nbBonsCRCs_3x   = 0;
-    int nbBonsCRCs_llr  = 0;
-    int nbDF18Frames    = 0;
-    int nbStrangeFrames = 0;
-
     //
     // Creation an initialization of the parametres used to configure
     // the ADSB receiver.
@@ -238,8 +407,8 @@ int main(int argc, char *argv[])
     param.set("receiver_gain", -1);
 
 #if defined(__ARM_NEON)
-    param.set("mode_conv", "NEON"); // scalar
-    param.set("mode_corr", "NEON_Intra"); // scalar
+    param.set("mode_conv", "NEON");       // scalar
+    param.set("mode_corr", "NEON_Inter"); // scalar
 #elif defined(__AVX2__)
     param.set("mode_conv", "AVX2"); // scalar
     param.set("mode_corr", "AVX2"); // scalar
@@ -456,6 +625,8 @@ int main(int argc, char *argv[])
 
     Detector *detect = DetectorLibrary::allocate(param);
 
+    Statistiques stats;
+
     printf("(II) Launching the emitter application :\n");
     printf("(II) -> Modulation frequency    : %4d MHz\n", (int) (param.toDouble("fc") / 1000000.0));
     printf("(II) -> Symbol sampling freq.   : %4d MHz\n", (int) (param.toDouble("fe") / 1000000.0));
@@ -506,13 +677,11 @@ int main(int argc, char *argv[])
     // Selection du module de conversion employé dans le programme
     //
 
-    CTickCounter timer;
-
     const float ps_min         = param.toFloat("ps_min");
     const bool brute_force_1x  = param.toBool ("brute_force_1x");
     const bool brute_force_2x  = param.toBool ("brute_force_2x");
     const bool brute_force_3x  = param.toBool ("brute_force_3x");
-    const bool brute_force_llr = param.toBool ("brute_force_llr");
+//    const bool brute_force_llr = param.toBool ("brute_force_llr");
 
     std::vector<float> buffer_abs;
     std::vector<float> buffer_detect;
@@ -523,6 +692,12 @@ int main(int argc, char *argv[])
     std::vector<uint8_t> buff_6;
     std::vector<uint8_t> buff_7;
 
+    const int overSampling    =   2;
+    const int payload_nBytes  =  14;
+    const int payload_nBits   = 8 * payload_nBytes;             // 112
+    const int frame_nBits     = 8 + payload_nBits;              // 120
+    const int modulation_nIQs = 2 * frame_nBits;                // 240
+    const int oversample_nIQs = overSampling * modulation_nIQs; // 480
 
     vector<float>   vec_data (480);
     vector<float>   vec_down (240);
@@ -557,16 +732,12 @@ int main(int argc, char *argv[])
 
     const bool StoreDataSet = param.toBool("dump_frame");
 
-    FILE* file_iq_raw     = nullptr; // Le fichier contenant les données I/Q
-    FILE* file_frames_bin = nullptr; // Le fichier contenant les 112 bits correspondant aux frames
     FILE* file_frames_dec = nullptr; // Le fichier contenant les trames décodées
     FILE* file_planes     = nullptr; // Le fichier contenant les informations concernant les avions
     FILE* file_coords     = nullptr; // Le fichier contenant les informations concernant les avions
 
     if( StoreDataSet == true )
     {
-        //file_iq_raw     = fopen( "file_iq_raw.cs8", "w" );
-        //file_frames_bin = fopen( "file_frames_bin.txt", "w" );
         file_frames_dec = fopen( "file_frames_dec.txt", "w" );
         file_planes     = fopen( "file_planes.txt", "w" );
         file_coords     = fopen( "file_coords.m", "w" );
@@ -627,9 +798,7 @@ int main(int argc, char *argv[])
         fflush(stdout);
         cnt += 1;
 #endif
-        timer.start_loading();
         bool error_n = radio->reception(buffer, coverage);
-        timer.stop_loading();
 
         if (error_n == false) // Cela signifie que l'on a rencontré une erreur lors de la
             continue;         // reception des echantillons
@@ -639,16 +808,12 @@ int main(int argc, char *argv[])
         //
         // CALCUL DU MODULE DES VOIES (I,Q)
         //
-        timer.start_conversion();
         conv->execute(&buffer, &buffer_abs);
-        timer.stop_conversion();
 
         //
         // ON LANCE LA FONCTION DE DETECTION SUR L'ENSEMBLE DU BUFFER
         //
-        timer.start_detection();
         detect->execute(&buffer_abs, &buffer_detect);
-        timer.stop_detection();
 
 
         const int dump_decoded_frame = true;
@@ -671,26 +836,8 @@ int main(int argc, char *argv[])
                 // Le score de la position k depasse le score minimum fixé par l'utilisateur
                 //
 
-                timer.start_decoding();
-                nbTramesDetectees += 1;    // On vient de detecter qqchose
-
-                //
-                // On stocke les données pour une utilisation ultérieure
-                //
-                if( file_iq_raw != nullptr )
-                {
-                    int8_t dSet[960];
-                    float* iSet = (float*)(buffer.data() + k);
-                    float maxv = 0;
-                    for (int x = 0; x < 960; x += 1)
-                        maxv = std::max(maxv, iSet[x]);  // On suppose que les données que l'on récupere sont  -127 <=> +127
-                    for (int x = 0; x < 960; x += 1)
-                        dSet[x] = (maxv <= 1.0f) ? 127.0f * iSet[x] : iSet[x];  // On suppose que les données que l'on récupere sont  -127 <=> +127
-                    fwrite(dSet, sizeof(int8_t), 960, file_iq_raw);
-                    for (int x = 0; x < 60; x += 1) // On rajoute un peu de data entre 2 trames
-                        dSet[x] = (rand()%6) - 3;
-                    fwrite(dSet, sizeof(int8_t), 60, file_iq_raw);
-                }
+                stats.add_detected_frame(); // on met a jour les stats
+//              nbTramesDetectees += 1;    // On vient de detecter qqchose
 
                 for (int x = 0; x < vec_data.size(); x += 1)    // On extrait les 120 bits (x2) du vecteur
                     vec_data[x] = buffer_abs[x + k];            // d'echantillons (modules complexes de IQ)
@@ -700,59 +847,52 @@ int main(int argc, char *argv[])
                 o_sync.execute(vec_demod, vec_sync);        // 112 bits
                 o_pack.execute(vec_sync,  vec_pack);     // 15 octets
 
-                const bool crc_initial = check_crc  <112 / 8>( vec_pack.data() );
+                bool crc_is_ok = check_crc  <112 / 8>( vec_pack.data() );
+                if( crc_is_ok ) stats.validated_crc_init();
 
                 //
                 // On stocke les données pour une utilisation ultérieure
                 //
-                if( file_frames_bin != nullptr ) {
-                    if(crc_initial ) fprintf(file_frames_bin, "%5d | OK | [", nbTramesDetectees);
-                    else             fprintf(file_frames_bin, "%5d | KO | [", nbTramesDetectees);
-                    for (int x = 0; x < vec_sync.size() - 1; x += 1)
-                        fprintf(file_frames_bin, "%d,", vec_sync[x]);
-                    fprintf(file_frames_bin, "%d]\n", vec_sync[vec_sync.size() - 1]);
-                }
 
                 bool crc_brute_1x = false;
-                if ( (crc_initial == false) && (brute_force_1x == true) )
+                if ( (crc_is_ok == false) && (brute_force_1x == true) )
                 {
                     crc_brute_1x = try_brute_force_1x( vec_pack, vec_demod, vec_sync );
+                    if( crc_brute_1x ) stats.validated_crc_brute_1x();
                 }
+                crc_is_ok |= crc_brute_1x;
 
                 bool crc_brute_2x = false;
-                if ( (crc_initial == false) && (crc_brute_1x == false) && (brute_force_2x == true) )
+                if ( (crc_is_ok == false) && (brute_force_2x == true) )
                 {
                     crc_brute_2x = try_brute_force_2x( vec_pack, vec_demod, vec_sync );
+                    if( crc_brute_2x ) stats.validated_crc_brute_2x();
                 }
+                crc_is_ok |= crc_brute_2x;
 
                 bool crc_brute_3x = false;
-                if ( (crc_initial == false) && (crc_brute_1x == false) && (crc_brute_2x == false) && (brute_force_3x == true) )
+                if ( (crc_is_ok == false) && (brute_force_3x == true) )
                 {
                     crc_brute_3x = try_brute_force_3x( vec_pack, vec_demod, vec_sync );
+                    if( crc_brute_3x ) stats.validated_crc_brute_3x();
                 }
+                crc_is_ok |= crc_brute_3x;
 
-                bool crc_brute_llr = false;
-                if ( (crc_initial == false) && (crc_brute_1x == false) && (crc_brute_2x == false) && (brute_force_llr == true)  )
-                {
-                    crc_brute_llr = try_brute_force_llrs( vec_pack, vec_demod, vec_sync, vec_down );
-                }
+//                bool crc_brute_llr = false;
+//                if ( (crc_initial == false) && (crc_brute_1x == false) && (crc_brute_2x == false) && (brute_force_llr == true)  )
+//                {
+//                    crc_brute_llr = try_brute_force_llrs( vec_pack, vec_demod, vec_sync, vec_down );
+//                }
 
-                const bool crc_is_ok  = ((crc_initial == true)  || (crc_brute_1x == true) || (crc_brute_2x == true) || (crc_brute_3x == true));
-                nbBonsCRCs     += crc_is_ok;
-                nbBonsCRC_init += (crc_initial   == true);
-                nbBonsCRCs_1x  += (crc_brute_1x  == true);
-                nbBonsCRCs_2x  += (crc_brute_2x  == true);
-                nbBonsCRCs_3x  += (crc_brute_3x  == true);
-                nbBonsCRCs_llr += (crc_brute_llr == true);
 
                 if ((crc_is_ok == true) || (crc_is_ok == false && verbose >= 2))
                 {
                     const char* crc_show;
-                         if( crc_initial   == true ) crc_show = "\x1B[32mOK\x1B[0m";
+                         if( crc_is_ok     == true ) crc_show = "\x1B[32mOK\x1B[0m";
                     else if( crc_brute_1x  == true ) crc_show = "\x1B[33mOK\x1B[0m";
                     else if( crc_brute_2x  == true ) crc_show = "\x1B[31;1mOK\x1B[0m";
                     else if( crc_brute_3x  == true ) crc_show = "\x1B[31mOK\x1B[0m";
-                    else if( crc_brute_llr == true ) crc_show = "\x1B[36mOK\x1B[0m";
+                    //else if( crc_brute_llr == true ) crc_show = "\x1B[36mOK\x1B[0m";
 
                     if( verbose >= 1 )
                     {
@@ -764,18 +904,30 @@ int main(int argc, char *argv[])
 
                     if (crc_is_ok)
                     {
-
                         const int32_t df_value   = pack_bits(vec_sync.data(), 5);
                         const int32_t type_frame = pack_bits(vec_sync.data() + 32, 5);
                         const int32_t oaci_value = pack_bits(vec_sync.data() + 8, 24);
 
                         if( df_value == 18 ){
-                            nbDF18Frames += 1;
+                            stats.add_type_18_frame();//nbDF18Frames += 1;
                             continue;
                         }else if( df_value != 17 ){
-                            nbStrangeFrames += 1;
+                            stats.add_strange_frame();
+                            //nbStrangeFrames += 1;
                             continue;
                         }
+
+                        if( file_frames_dec != nullptr )
+                        {
+                            if( (crc_brute_1x || crc_brute_2x || crc_brute_3x )   == false )
+                                fprintf(file_frames_dec, "+ ");
+                            else
+                                fprintf(file_frames_dec, "- ");
+                            for(int o = 0; o < 14; o += 1)
+                                fprintf(file_frames_dec, "%2.2X", vec_pack[o]);
+                            fprintf(file_frames_dec, " | ");
+                        }
+
                         //
                         //
                         //
@@ -789,8 +941,8 @@ int main(int argc, char *argv[])
                             liste_m[oaci_value] = ptr_avion;
                             liste_v.push_back(ptr_avion);
                         }
-                        ptr_avion->update();
-                        ptr_avion->set_score( score );
+                        ptr_avion->update();                    // on indique qu'on vient de recevoir une trame pour l'avion
+                        ptr_avion->set_score( score );    // on memorise le score obtenu lors de la correlation
                         //
                         //
                         //
@@ -804,7 +956,8 @@ int main(int argc, char *argv[])
                             const int32_t typeAricraft = toCode( type_frame, type_airc );
                             if( typeAricraft == -1 )
                             {
-                                nbStrangeFrames += 1;
+                                stats.add_strange_frame();
+                                //nbStrangeFrames += 1;
                                 continue;
                             }
 
@@ -821,9 +974,9 @@ int main(int argc, char *argv[])
                             caractere[8] = 0;
 
                             if (dump_decoded_frame && (dump_resume == false))
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d | %s |          |      |           |           |     |         |         |       |  %s |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, caractere, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d | %s |          |      |           |           |     |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, caractere, crc_show);
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d | %s |          |      |           |           |     |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, caractere);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d | %s |          |      |           |           |     |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, caractere);
 
                             ptr_avion->set_type(typeAricraft);
                             ptr_avion->set_name(caractere);
@@ -838,9 +991,9 @@ int main(int argc, char *argv[])
                         if ((type_frame >= 5) && (type_frame <= 8) )
                         {
                             if (dump_decoded_frame && (dump_resume == false))
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  %s |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, crc_show);
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame);
                         }
                         //
                         //
@@ -855,7 +1008,13 @@ int main(int argc, char *argv[])
                             const int32_t incr  = pack_bits(vec_sync.data() + 47, 1);
                             const int32_t lower = pack_bits(vec_sync.data() + 48, 4);
                             int32_t altitude = (upper << 4) | lower;
-                            altitude = ( incr == 1) ? (altitude * 25 - 1000) : -1;
+                            altitude = ( incr == 1) ? (altitude * 25 - 1000) : 0;
+
+                            // NEW BLG
+                            const int new_altitude = decode_ac12_field( vec_pack.data() );
+                            if( altitude != new_altitude )
+                                printf("Error in altitude computation (%d %d)\n",  altitude, new_altitude);
+                            // END NEW BLG
 
                             //
                             // On extrait les informations de la trame
@@ -863,6 +1022,13 @@ int main(int argc, char *argv[])
                             const int32_t CPR_format = pack_bits      (vec_sync.data() + 53,  1);
                             const float f_latitude   = pack_bits_float(vec_sync.data() + 54, 17);//(float)enc_latitude  / 131072.0; // divise par 2^17
                             const float f_longitude  = pack_bits_float(vec_sync.data() + 71, 17);//(float)enc_longitude / 131072.0; // divise par 2^17
+
+                            // NEW BLG
+                            const int   raw_latitude    = ((vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
+                            const int   raw_longitude   = ((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
+                            const float f_raw_latitude  = ((float)raw_latitude) / 131072.f;
+                            const float f_raw_longitude = ((float)raw_longitude) / 131072.f;
+                            // END NEW BLG
 
 //                            printf("%06X | CPR_format = %d\n", oaci_value, CPR_format);
 
@@ -874,12 +1040,22 @@ int main(int argc, char *argv[])
                             float final_lon    = ComputeLongitude(f_longitude, final_lat,     ref_longitude, CPR_format);
                             const int32_t dist = distance(final_lat, final_lon, ref_latitude, ref_longitude);
 
+                            if( CPR_format == 0 ) // EVEN frame
+                            {
+                                ptr_avion->lat_even = final_lat;
+                                ptr_avion->lon_even = final_lon;
+                            }
+                            else  // ODD frame
+                            {
+                                ptr_avion->lat_odd = final_lat;
+                                ptr_avion->lon_odd = final_lon;
+                            }
 
                             if (dump_decoded_frame && (dump_resume == false)) {
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist, crc_show);
                             }
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist);
 
                             ptr_avion->set_altitude (altitude);
                             ptr_avion->set_GNSS_mode(false);
@@ -918,9 +1094,9 @@ int main(int argc, char *argv[])
                                 if (vec_demod[39 + 37] == 1) Vr = -Vr; // en feet/min
                                 Vr = Vr * 0.3048;
                                 if (dump_decoded_frame && (dump_resume == false))
-                                    printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |    %4d |    %4d |  %4d |  %s |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t) speed, (int32_t) Vr, (int32_t) angle, crc_show);
+                                    printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |    %4d |    %4d |  %4d |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t) speed, (int32_t) Vr, (int32_t) angle, crc_show);
                                 if( file_frames_dec != nullptr )
-                                    fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |    %4d |    %4d |  %4d |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t) speed, (int32_t) Vr, (int32_t) angle);
+                                    fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |    %4d |    %4d |  %4d |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t) speed, (int32_t) Vr, (int32_t) angle);
 
                                 const int32_t ew_dir           = (vec_pack[5]&4) >> 2;
                                 const int32_t ew_velocity      = ((vec_pack[5] & 3) << 8) | vec_pack[6];
@@ -962,10 +1138,21 @@ int main(int argc, char *argv[])
                             const float final_lon     = ComputeLongitude(f_longitude, final_lat,    ref_longitude, CPR_format);
                             const int32_t dist        = distance(final_lat, final_lon, ref_latitude, ref_longitude);
 
+                            if( CPR_format == 0 ) // EVEN frame
+                            {
+                                ptr_avion->lat_even = final_lat;
+                                ptr_avion->lon_even = final_lon;
+                            }
+                            else  // ODD frame
+                            {
+                                ptr_avion->lat_odd = final_lat;
+                                ptr_avion->lon_odd = final_lon;
+                            }
+
                             if (dump_decoded_frame && (dump_resume == false))
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist, crc_show);
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist);
                             ptr_avion->set_altitude (altitude);
                             ptr_avion->set_GNSS_mode(true);
                             ptr_avion->set_latitude (final_lat);
@@ -982,9 +1169,9 @@ int main(int argc, char *argv[])
                         if ((type_frame >= 23) && (type_frame <= 27))
                         {
                             if (dump_decoded_frame && (dump_resume == false))
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  %s |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, crc_show);
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame);
                         }
                         //
                         //
@@ -996,9 +1183,9 @@ int main(int argc, char *argv[])
                         if (type_frame == 28)
                         {
                             if (dump_decoded_frame && (dump_resume == false))
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  %s |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, crc_show);
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame);
                         }
                         //
                         //
@@ -1010,9 +1197,9 @@ int main(int argc, char *argv[])
                         if (type_frame == 29)
                         {
                             if (dump_decoded_frame && (dump_resume == false))
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  %s |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, crc_show);
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame);
                         }
                         //
                         //
@@ -1024,9 +1211,9 @@ int main(int argc, char *argv[])
                         if (type_frame == 31)
                         {
                             if (dump_decoded_frame && (dump_resume == false))
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  %s |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, crc_show);
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", nbBonsCRCs, acq_counter, k, score, df_value, oaci_value, type_frame);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |          |      |           |           |     |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame);
                         }
 
                         if( (dump_decoded_frame == false) && (dump_resume == false) )
@@ -1047,7 +1234,7 @@ int main(int argc, char *argv[])
 #endif
                     } else {
                         for (int i = 0; i < vec_demod.size(); i += 1) {
-                            if (i == 8) printf(" ");
+                                 if (i ==  8) printf(" ");
                             else if (i == 13) printf(" ");
                             else if (i == 16) printf(" ");
                             else if (i == 40) printf(" ");
@@ -1068,7 +1255,6 @@ int main(int argc, char *argv[])
                     }
 
                 }
-                timer.stop_decoding();
                 k += 1; // On pourrait augementer de plus car il y a peu de chance qu'une autre
                         // trame soit présente d'ici 480 ech.
             }
@@ -1104,6 +1290,7 @@ int main(int argc, char *argv[])
            )
         {
             printf("\e[1;1H\e[2J");
+            /*
             const auto stop = std::chrono::system_clock::now();
             const int32_t eTime = chrono::duration_cast<chrono::seconds>(stop - start).count();
             std::cout << "Application runtime : " << eTime << " seconds"
@@ -1116,7 +1303,7 @@ int main(int argc, char *argv[])
             std::cout << " - Number of saved frames with bit-flip (x3)   : " << nbBonsCRCs_3x     << std::endl;
             std::cout << "Number of discarded frames with DF = 18        : " << nbDF18Frames      << " (type == 18)" <<std::endl;
             std::cout << "Number of discarded frames with strange values : " << nbStrangeFrames   << " (type != 17 && type != 18)" <<std::endl;
-
+            */
             std::cout << std::endl;
             printf("OACI   | TYPE   | NAME     | CORR. SCORE       |  LATITUDE | LONGITUDE | H.SPEED   | V.SPEED   | ANGLE | TYPE | ALTITUDE  | DISTANCE [min,max] | FRAMES | LAST     |\n");
             printf("-------+--------+----------+-------------------+-----------+-----------+-----------+-----------+-------+------+-----------+--------------------+--------+----------|\n");
@@ -1209,37 +1396,21 @@ int main(int argc, char *argv[])
     // Affichage des statistiques d'execution
     //
 
-    printf("\n================================================================\n");
-    std::cout << "loading    : " << timer.loading()    << std::endl;
-    std::cout << "conversion : " << timer.conversion() << std::endl;
-    std::cout << "detection  : " << timer.detection()  << std::endl;
-    std::cout << "decoding   : " << timer.decoding()   << std::endl;
-    printf("================================================================\n");
-
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     double RTConstr = 1000.0f / (param.toDouble("fe") / buffer.size());
     double avgTime = chrono::duration_cast<chrono::milliseconds>(elapsed).count() / (float) acq_counter;
 
-    printf("\n");
-    std::cout << "Nombre d'aquisition réalisées  : " << acq_counter << std::endl;
-    std::cout << "Temps moyen par acquisition    : " << avgTime << " ms" << std::endl;
-    std::cout << "Constrainte tps réel / iter    : " << RTConstr << " ms" << std::endl;
+    std::cout << "(II)" << std::endl;
+    std::cout << "(II) Nombre d'aquisition réalisées  : " << acq_counter << std::endl;
+    std::cout << "(II) Temps moyen par acquisition    : " << avgTime << " ms" << std::endl;
+    std::cout << "(II) Constrainte tps réel / iter    : " << RTConstr << " ms" << std::endl;
 
-    std::cout << "Number of frames over the detection value      : " << nbTramesDetectees << std::endl;
-    std::cout << "Number of frames with validated CRC value      : " << nbBonsCRCs        << std::endl;
-    std::cout << " - Number of initially correct  CRC values     : " << nbBonsCRC_init    << std::endl;
-    std::cout << " - Number of saved frames with bit-flip (x1)   : " << nbBonsCRCs_1x     << std::endl;
-    std::cout << " - Number of saved frames with bit-flip (x2)   : " << nbBonsCRCs_2x     << std::endl;
-    std::cout << " - Number of saved frames with bit-flip (x3)   : " << nbBonsCRCs_3x     << std::endl;
-    std::cout << "Number of discarded frames with strange values : " << nbStrangeFrames   << " (type != 17)" <<std::endl;
+    stats.dump();
 
-    printf("\n");
-    std::cout << "Nombre de trames emises  (frames)  = " << nbBonsCRCs << std::endl;
-
-    printf("\n");
-    std::cout << "Temps total : " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << " ms" << std::endl;
-    printf("\n");
+    std::cout << "(II)" << std::endl;
+    std::cout << "(II) Temps total : " << chrono::duration_cast<chrono::milliseconds>(end - start).count() << " ms" << std::endl;
+    std::cout << "(II)" << std::endl;
 
     //
     // Si on a loggué les données dans des fichiers, il est temps de les fermer proprement...
@@ -1247,8 +1418,6 @@ int main(int argc, char *argv[])
 
     if( StoreDataSet == true )
     {
-        //fclose(file_iq_raw    );
-        //fclose(file_frames_bin);
         fclose(file_frames_dec);
         fclose(file_planes    );
         fclose(file_coords    );

@@ -37,6 +37,12 @@ private:
 public:
     std::vector<float> list_long;
     std::vector<float> list_lat;
+
+    float lon_odd;      // ODD and EVEN positions
+    float lat_odd;      // of the planes used to
+    float lon_even;     // precisely compute their
+    float lat_even;     // positions
+
     std::vector<int32_t> list_altitude;
 
     float last_score;

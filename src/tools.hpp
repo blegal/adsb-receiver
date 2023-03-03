@@ -315,9 +315,9 @@ const uint32_t CRC_POLY = 0x00FFF409;
 
 void init_crc_lut()
 {
-    for (uint32_t i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++) {
         uint32_t crc = i << 16;
-        for (uint32_t j = 0; j < 8; j++) {
+        for (int j = 0; j < 8; j++) {
             if (crc & 0x800000) {
                 crc = ((crc << 1) ^ CRC_POLY) & 0xffffff;
             } else {
@@ -352,6 +352,10 @@ static inline void flipbit(uint8_t *buffer, uint32_t bit_loc )
 float ComputeLatitude(const float f_latitude, const float ref_latitude, const int32_t CPR_format)
 {
     const float d_latitude = 360.0 / (4.0 * 15.0 - (float)CPR_format);
+
+//  const float d_lat_odd  = 360.f / (4.f * 15.f - 1.f);
+//  const float d_lat_even = 360.f / (4.f * 15.f      );
+
     const float j = std::floor(ref_latitude/d_latitude) + std::floor(0.5 + cprMod(ref_latitude,d_latitude)/d_latitude - f_latitude);
     const float final_lat = d_latitude * (j + f_latitude);
     return final_lat;

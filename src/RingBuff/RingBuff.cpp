@@ -10,7 +10,6 @@
 #include <cstdlib>
 
 //===== USER SOURCE =====//
-#include "./Config.hpp"
 #include "./RingBuff.hpp"
 
 
