@@ -48,10 +48,10 @@ Avion::Avion(const int32_t _OACI)
     dist_max  = 0.0f;
     dist_curr = 0.0f;
 
-    lon_odd  = -0.502448;
-    lon_even = -0.502448;
-    lat_odd  = 44.820919;
-    lat_even = 44.820919;
+    lon_odd  = 0;
+    lon_even = 0;
+    lat_odd  = 0;
+    lat_even = 0;
 
     OACI      = _OACI;
     updates   = 0;

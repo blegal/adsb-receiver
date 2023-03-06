@@ -39,10 +39,10 @@ public:
     std::vector<float>  list_lat;
     std::vector<int8_t> list_crc; // validated with/without brute force
 
-    float lon_odd;      // ODD and EVEN positions
-    float lat_odd;      // of the planes used to
-    float lon_even;     // precisely compute their
-    float lat_even;     // positions
+    int lon_odd;      // ODD and EVEN positions
+    int lat_odd;      // of the planes used to
+    int lon_even;     // precisely compute their
+    int lat_even;     // positions
 
     std::vector<int32_t> list_altitude;
 

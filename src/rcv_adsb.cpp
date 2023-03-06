@@ -298,10 +298,9 @@ void decodeCPR(
         int odd_cprlat,
         int even_cprlon,
         int odd_cprlon,
-        int even_cprtime,
-        int odd_cprtime,
-        int &lon,
-        int &lat
+        int even,
+        double &lon,
+        double &lat
 )
 {
     const double AirDlat0 = 360.0 / 60;
@@ -324,7 +323,7 @@ void decodeCPR(
     if (cprNLFunction(rlat0) != cprNLFunction(rlat1)) return;
 
     /* Compute ni and the longitude index m */
-    if (even_cprtime > odd_cprtime){
+    if ( even ){
         /* Use even packet. */
         int ni = cprNFunction(rlat0,0);
         int m = floor((((lon0 * (cprNLFunction(rlat0)-1)) -
@@ -958,7 +957,6 @@ int main(int argc, char *argv[])
                             if( typeAricraft == -1 )
                             {
                                 stats.add_strange_frame();
-                                //nbStrangeFrames += 1;
                                 continue;
                             }
 
@@ -980,7 +978,7 @@ int main(int argc, char *argv[])
                                 fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d | %s |          |      |           |           |     |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, caractere);
 
                             ptr_avion->set_type(typeAricraft);
-                            ptr_avion->set_name(caractere);
+                            ptr_avion->set_name(caractere   );
                         }
                         //
                         //
@@ -1003,7 +1001,7 @@ int main(int argc, char *argv[])
                         //
                         //
                         //
-                        if ((type_frame >= 9) && (type_frame <= 18) )
+                        if( (type_frame >= 9) && (type_frame <= 18) )
                         {
                             const int32_t upper = pack_bits(vec_sync.data() + 40, 7);
                             const int32_t incr  = pack_bits(vec_sync.data() + 47, 1);
@@ -1025,43 +1023,77 @@ int main(int argc, char *argv[])
                             const float f_longitude  = pack_bits_float(vec_sync.data() + 71, 17);//(float)enc_longitude / 131072.0; // divise par 2^17
 
                             // NEW BLG
+                            double lon, lat;
                             const int   raw_latitude    = ((vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
                             const int   raw_longitude   = ((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
-                            const float f_raw_latitude  = ((float)raw_latitude) / 131072.f;
-                            const float f_raw_longitude = ((float)raw_longitude) / 131072.f;
-                            // END NEW BLG
 
-//                            printf("%06X | CPR_format = %d\n", oaci_value, CPR_format);
-
-                            //
-                            // On calcule les parametres reels
-                            //
-
-                            float final_lat    = ComputeLatitude (f_latitude,  ref_latitude,                 CPR_format);
-                            float final_lon    = ComputeLongitude(f_longitude, final_lat,     ref_longitude, CPR_format);
-                            const int32_t dist = distance(final_lat, final_lon, ref_latitude, ref_longitude);
-
+                            int last_lon;
+                            int last_lat;
                             if( CPR_format == 0 ) // EVEN frame
                             {
-                                ptr_avion->lat_even = final_lat;
-                                ptr_avion->lon_even = final_lon;
+                                last_lon = ptr_avion->lon_even;
+                                last_lat = ptr_avion->lat_even;
+                                ptr_avion->lat_even = raw_latitude;
+                                ptr_avion->lon_even = raw_longitude;
+                                if( (ptr_avion->lat_odd == 0) || (ptr_avion->lon_odd == 0) )
+                                {
+                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 CPR_format);
+                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, CPR_format);
+                                }
+                                else
+                                {
+                                    decodeCPR(ptr_avion->lat_even, ptr_avion->lat_odd, ptr_avion->lon_even, ptr_avion->lon_odd, 1, lon, lat);
+                                }
                             }
                             else  // ODD frame
                             {
-                                ptr_avion->lat_odd = final_lat;
-                                ptr_avion->lon_odd = final_lon;
+                                last_lon = ptr_avion->lon_odd;
+                                last_lat = ptr_avion->lat_odd;
+                                ptr_avion->lat_odd = raw_latitude;
+                                ptr_avion->lon_odd = raw_longitude;
+                                if( (ptr_avion->lat_even == 0) || (ptr_avion->lon_even == 0) )
+                                {
+                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 CPR_format);
+                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, CPR_format);
+                                }
+                                else
+                                {
+                                    decodeCPR(ptr_avion->lat_even, ptr_avion->lat_odd, ptr_avion->lon_even, ptr_avion->lon_odd, 0, lon, lat);
+                                }
                             }
+                            // END NEW BLG
+
+                            const int32_t dist = distance(lat, lon, ref_latitude, ref_longitude);
 
                             if (dump_decoded_frame && (dump_resume == false)) {
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, (float)lon, (float)lat, dist, crc_show);
                             }
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, (float)lon, (float)lat, dist);
+
+
+                            if( ptr_avion->get_latitude() != 0.0f )
+                            {
+                                float diff_x = abs( ptr_avion->get_latitude()  - lat );
+                                float diff_y = abs( ptr_avion->get_longitude() - lon );
+                                if( (diff_x > 0.5) || (diff_y > 0.5) )
+                                {
+                                    isFinished = true;
+                                    printf("CPR_format  = %d\n", CPR_format);
+                                    printf("last_lat = %d\n", last_lat);
+                                    printf("last_lon = %d\n", last_lon);
+                                    printf("ptr_avion->lat_odd  = %d\n", ptr_avion->lat_odd);
+                                    printf("ptr_avion->lon_odd  = %d\n", ptr_avion->lon_odd);
+                                    printf("ptr_avion->lat_even = %d\n", ptr_avion->lat_even);
+                                    printf("ptr_avion->lon_even = %d\n", ptr_avion->lon_even);
+                                    k = length;
+                                }
+                            }
 
                             ptr_avion->set_altitude   (altitude);
                             ptr_avion->set_GNSS_mode  (false);
-                            ptr_avion->set_latitude   (final_lat);
-                            ptr_avion->set_longitude  (final_lon);
+                            ptr_avion->set_latitude   (lat);
+                            ptr_avion->set_longitude  (lon);
                             ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );
                             
                             ptr_avion->update_distance();
@@ -1108,7 +1140,9 @@ int main(int argc, char *argv[])
                                 const int32_t vert_rate_source = (vec_pack[8]&0x10) >> 4;
                                 const int32_t vert_rate_sign   = (vec_pack[8]&0x8 ) >> 3;
                                 const int32_t vert_rate        = ((vec_pack[8]&7) << 6) | ((vec_pack[9] & 0xfc) >> 2);
+
                                 /* Compute velocity and angle from the two speed components. */
+
                                 const int32_t velocity = sqrt( ns_velocity * ns_velocity + ew_velocity * ew_velocity);
 
                                 ptr_avion->set_speed_horizontal(speed);
@@ -1137,29 +1171,52 @@ int main(int argc, char *argv[])
                             const int32_t CPR_format  = pack_bits      (vec_sync.data() + 53, 1);
                             const float f_latitude    = pack_bits_float(vec_sync.data() + 54, 17);//(float)enc_latitude  / 131072.0; // divise par 2^17
                             const float f_longitude   = pack_bits_float(vec_sync.data() + 71, 17);//(float)enc_longitude / 131072.0; // divise par 2^17
-                            const float final_lat     = ComputeLatitude (f_latitude,  ref_latitude,                CPR_format);
-                            const float final_lon     = ComputeLongitude(f_longitude, final_lat,    ref_longitude, CPR_format);
-                            const int32_t dist        = distance(final_lat, final_lon, ref_latitude, ref_longitude);
 
+
+                            // NEW BLG
+                            double lon, lat;
+                            const int   raw_latitude    = ((vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
+                            const int   raw_longitude   = ((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
                             if( CPR_format == 0 ) // EVEN frame
                             {
-                                ptr_avion->lat_even = final_lat;
-                                ptr_avion->lon_even = final_lon;
+                                ptr_avion->lat_even = raw_latitude;
+                                ptr_avion->lon_even = raw_longitude;
+                                if( (ptr_avion->lat_odd == 0) || (ptr_avion->lon_odd == 0) )
+                                {
+                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 CPR_format);
+                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, CPR_format);
+                                }
+                                else
+                                {
+                                    decodeCPR(ptr_avion->lat_even, ptr_avion->lat_odd, ptr_avion->lon_even, ptr_avion->lon_odd, 1, lon, lat);
+                                }
                             }
                             else  // ODD frame
                             {
-                                ptr_avion->lat_odd = final_lat;
-                                ptr_avion->lon_odd = final_lon;
+                                ptr_avion->lat_odd = raw_latitude;
+                                ptr_avion->lon_odd = raw_longitude;
+                                if( (ptr_avion->lat_even == 0) || (ptr_avion->lon_even == 0) )
+                                {
+                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 CPR_format);
+                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, CPR_format);
+                                }
+                                else
+                                {
+                                    decodeCPR(ptr_avion->lat_even, ptr_avion->lat_odd, ptr_avion->lon_even, ptr_avion->lon_odd, 0, lon, lat);
+                                }
                             }
+                            // END NEW BLG
+
+                            const int32_t dist = distance(lat, lon, ref_latitude, ref_longitude);
 
                             if (dump_decoded_frame && (dump_resume == false))
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, (float)lon, (float)lat, dist, crc_show);
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, final_lon, final_lat, dist);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, (float)lon, (float)lat, dist);
                             ptr_avion->set_altitude (altitude);
                             ptr_avion->set_GNSS_mode(true);
-                            ptr_avion->set_latitude (final_lat);
-                            ptr_avion->set_longitude(final_lon);
+                            ptr_avion->set_latitude   (lat);
+                            ptr_avion->set_longitude  (lon);
                             ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );
                             ptr_avion->update_distance();
                         }

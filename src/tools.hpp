@@ -361,6 +361,7 @@ float ComputeLatitude(const float f_latitude, const float ref_latitude, const in
     return final_lat;
 }
 
+
 float ComputeLongitude(const float f_longitude, const float final_lat, const float ref_longitude, const int32_t CPR_format)
 {
     const float NL = cprNL(final_lat);
