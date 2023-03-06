@@ -775,6 +775,7 @@ int main(int argc, char *argv[])
     const int acq_per_sec = 2 * param.toInt("fe") / (buffer.size() -vec_data.size());
 
     int acq_counter = 0;
+    int n_dots      = 0;
 
     while (radio->alive() && (isFinished == false))
     {
@@ -889,11 +890,10 @@ int main(int argc, char *argv[])
                 if ((crc_is_ok == true) || (crc_is_ok == false && verbose >= 2))
                 {
                     const char* crc_show;
-                         if( crc_is_ok     == true ) crc_show = "\x1B[32mOK\x1B[0m";
-                    else if( crc_brute_1x  == true ) crc_show = "\x1B[33mOK\x1B[0m";
-                    else if( crc_brute_2x  == true ) crc_show = "\x1B[31;1mOK\x1B[0m";
-                    else if( crc_brute_3x  == true ) crc_show = "\x1B[31mOK\x1B[0m";
-                    //else if( crc_brute_llr == true ) crc_show = "\x1B[36mOK\x1B[0m";
+                         if( crc_brute_1x  == true ) crc_show = "\x1B[33mOK\x1B[0m";    //
+                    else if( crc_brute_2x  == true ) crc_show = "\x1B[31;1mOK\x1B[0m";  //
+                    else if( crc_brute_3x  == true ) crc_show = "\x1B[31mOK\x1B[0m";    //
+                    else                             crc_show = "\x1B[32mOK\x1B[0m";    // CRC OK d'origine
 
                     if( verbose >= 1 )
                     {
@@ -1106,7 +1106,7 @@ int main(int argc, char *argv[])
                                 const int32_t ns_dir           = (vec_pack[7]&0x80) >> 7;
                                 const int32_t ns_velocity      = ((vec_pack[7] & 0x7f) << 3) | ((vec_pack[8] & 0xe0) >> 5);
                                 const int32_t vert_rate_source = (vec_pack[8]&0x10) >> 4;
-                                const int32_t vert_rate_sign   = (vec_pack[8]&0x8) >> 3;
+                                const int32_t vert_rate_sign   = (vec_pack[8]&0x8 ) >> 3;
                                 const int32_t vert_rate        = ((vec_pack[8]&7) << 6) | ((vec_pack[9] & 0xfc) >> 2);
                                 /* Compute velocity and angle from the two speed components. */
                                 const int32_t velocity = sqrt( ns_velocity * ns_velocity + ew_velocity * ew_velocity);
@@ -1305,6 +1305,25 @@ int main(int argc, char *argv[])
                         liste_v.at(i)->print();
             }
         }
+
+        if ( (dump_resume == false) && (acq_counter % acq_per_sec == 0) )
+        {
+            switch (n_dots)
+            {
+                case 0: printf("         \r"); break;
+                case 1: printf(".        \r"); break;
+                case 2: printf("..       \r"); break;
+                case 3: printf("...      \r"); break;
+                case 4: printf("....     \r"); break;
+                case 5: printf(".....    \r"); break;
+                case 6: printf("......   \r"); break;
+                case 7: printf(".......  \r"); break;
+                case 8: printf("........ \r"); break;
+                case 9: printf(".........\r"); break;
+            }
+            fflush(stdout);
+            n_dots = (n_dots + 1) % 10;
+        }
     }
     //
     //
@@ -1385,10 +1404,7 @@ int main(int argc, char *argv[])
     //////////////////////////////////////////////////////////////////////////////////////////////////
     //
     //
-    if ( (acq_counter % acq_per_sec) == 0 )
-    {
-        dump_relatime.update( liste_v );
-    }
+    dump_relatime.update_all( liste_v );
     //
     //////////////////////////////////////////////////////////////////////////////////////////////////
 
