@@ -74,7 +74,6 @@ void ExportRealTime::update_all( std::vector<Avion*>& liste_v )
         exit( EXIT_FAILURE );
     }
 
-
     const int nPlanes = liste_v.size();
     for (int p = 0; p < nPlanes; p += 1)
     {
