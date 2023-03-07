@@ -129,6 +129,23 @@ int decode_ac13_field(const unsigned char *msg)
 	1 trame = 120 symb = 480 ech
 */
 
+const uint32_t extract_latitude(const uint8_t* vec_pack)
+{
+    uint32_t r;
+    r  = ( ((uint32_t)vec_pack[6] & 3) << 15);
+    r |= ( ((uint32_t)vec_pack[7]    ) <<  7);
+    r |= ( ((uint32_t)vec_pack[8]    ) >>  1);
+    return r;
+}
+
+const uint32_t extract_longitude(const uint8_t* vec_pack)
+{
+    uint32_t r;
+    r  = ( ((uint32_t)vec_pack[ 8] & 1) << 16);
+    r |= ( ((uint32_t)vec_pack[ 9]    ) <<  8);
+    r |= ( ((uint32_t)vec_pack[10]           );
+    return r;
+}
 
 #include "brute_force/brute_force_1x.hpp"
 #include "brute_force/brute_force_2x.hpp"
@@ -1023,12 +1040,24 @@ int main(int argc, char *argv[])
                             const float f_longitude  = pack_bits_float(vec_sync.data() + 71, 17);//(float)enc_longitude / 131072.0; // divise par 2^17
 
                             // NEW BLG
-                            double lon, lat;
-                            const int   raw_latitude    = ((vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
-                            const int   raw_longitude   = ((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
+////
+                            const int raw_latitude    = extract_latitude (vec_pack.data()); //vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
+                            const int raw_longitude   = extract_longitude(vec_pack.data()); //((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
+                            const int raw_latitude_2  = pack_bits(vec_sync.data() + 54, 17);
+                            const int raw_longitude_2 = pack_bits(vec_sync.data() + 71, 17);
 
-                            int last_lon;
-                            int last_lat;
+                            if( raw_latitude != raw_latitude_2 )
+                            {
+                                printf("(EE) raw_latitude != raw_latitude_2 (%d / %d)\n", raw_latitude, raw_latitude_2);
+                            }
+                            if( raw_longitude != raw_longitude_2 )
+                            {
+                                printf("(EE) raw_latitude != raw_latitude_2 (%d / %d)\n", raw_longitude, raw_longitude_2);
+                            }
+/////
+
+                            int last_lon, last_lat;
+                            double lon, lat;
                             if( CPR_format == 0 ) // EVEN frame
                             {
                                 last_lon = ptr_avion->lon_even;
@@ -1070,7 +1099,6 @@ int main(int argc, char *argv[])
                             }
                             if( file_frames_dec != nullptr )
                                 fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, (float)lon, (float)lat, dist);
-
 
                             if( ptr_avion->get_latitude() != 0.0f )
                             {
@@ -1174,9 +1202,24 @@ int main(int argc, char *argv[])
 
 
                             // NEW BLG
+////
+                            const int raw_latitude    = extract_latitude (vec_pack.data()); //vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
+                            const int raw_longitude   = extract_longitude(vec_pack.data()); //((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
+                            const int raw_latitude_2  = pack_bits(vec_sync.data() + 54, 17);
+                            const int raw_longitude_2 = pack_bits(vec_sync.data() + 71, 17);
+
+                            if( raw_latitude != raw_latitude_2 )
+                            {
+                                printf("(EE) raw_latitude != raw_latitude_2 (%d / %d)\n", raw_latitude, raw_latitude_2);
+                            }
+                            if( raw_longitude != raw_longitude_2 )
+                            {
+                                printf("(EE) raw_latitude != raw_latitude_2 (%d / %d)\n", raw_longitude, raw_longitude_2);
+                            }
+/////
+//                          const int   raw_latitude    = ((vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
+//                          const int   raw_longitude   = ((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
                             double lon, lat;
-                            const int   raw_latitude    = ((vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
-                            const int   raw_longitude   = ((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
                             if( CPR_format == 0 ) // EVEN frame
                             {
                                 ptr_avion->lat_even = raw_latitude;
