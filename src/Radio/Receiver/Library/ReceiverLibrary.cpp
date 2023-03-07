@@ -55,10 +55,10 @@ Receiver* ReceiverLibrary::allocate(Parameters& param)
     if(
             (type == "radio" && iequals(module, "hackrf"))
     ) {
-        ReceiverHackRF* r = new ReceiverHackRF(param.toDouble("fc"), param.toDouble("fe"));
-        if( param.toInt("hackrf_amplifier") != -1 ) r->set_amp_enable( param.toInt("hackrf_amplifier") );
-        if( param.toInt("receiver_gain"   ) != -1 ) r->set_vga_gain  ( param.toInt("receiver_gain") );
-        if( param.toInt("receiver_gain"   ) != -1 ) r->set_lna_gain  ( param.toInt("receiver_gain") );
+        ReceiverHackRF* r = new ReceiverHackRF(param.toDouble("fc"), param.toDouble("fe"), param.toInt("receiver_gain"));
+        //if( param.toInt("hackrf_amplifier") != -1 ) r->set_amp_enable( param.toInt("hackrf_amplifier") );
+        //if( param.toInt("receiver_gain"   ) != -1 ) r->set_vga_gain  (  );
+        //if( param.toInt("receiver_gain"   ) != -1 ) r->set_lna_gain  ( param.toInt("receiver_gain") );
         radio = r;
 
     } else if(

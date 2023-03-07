@@ -18,6 +18,7 @@ protected:
 	float   fc;
 	float   fe;
     bool    _alive;
+    int     gain;
 
 public :
     Receiver(float s_fc, float s_fe);
@@ -25,14 +26,15 @@ public :
     virtual void initialize() = 0;
 
     virtual bool reception(std::vector< std::complex<float> >& cbuffer, const uint32_t coverage) = 0;
-//  virtual bool reception(std::vector< std::complex<int8_t> >& cbuffer, const uint32_t coverage) = 0;
-//  virtual bool reception(std::vector< std::complex<int16_t> >& cbuffer, const uint32_t coverage) = 0;
 
     virtual void reset() = 0;
     virtual bool alive();
 
     virtual void start_engine() = 0;
     virtual void stop_engine () = 0;
+
+    int RcvGain();
+
 };
 
 #endif

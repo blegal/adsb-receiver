@@ -28,53 +28,56 @@ private :
     uint32_t vga_gain;
     uint32_t lna_gain;
 
-    int nEchantillons;  //nbre ech
+//    int nEchantillons;  //nbre ech
     hackrf_device* device = NULL;
 
 //    int8_t* buffer;
     RingBuff buff;
 
 public :
-    ReceiverHackRF(float s_fc, float s_fe);
+    ReceiverHackRF(float s_fc, float s_fe, const float rcv_ = -1.0f);
 	~ReceiverHackRF();
 
-    void initialize();
-
-    void start_engine();
-    void stop_engine ();
+    void initialize  (); // useless
+    void start_engine(); // useless
+    void stop_engine (); // useless
 
     bool reception(vector<complex<float  > >& cbuffer, const uint32_t coverage = 0);
-    bool reception(vector<complex<int8_t > >& cbuffer, const uint32_t coverage = 0);
-    bool reception(vector<complex<int16_t> >& cbuffer, const uint32_t coverage = 0);
 
     void reset();
 
-    void   set_freq(double value);
-    double get_freq( );
+//    void   set_freq(double value);
+//    double get_freq( );
 
-    void   set_sample_rate(double value);
-    double get_sample_rate( );
+//    void   set_sample_rate(double value);
+//    double get_sample_rate( );
 
-    void set_amp_enable(bool value);
-    bool get_amp_enable( );
+//    void set_amp_enable(bool value);
+//    bool get_amp_enable( );
 
-    void set_antenna_enable(bool value);
-    bool get_antenna_enable( );
+//    void set_antenna_enable(bool value);
+//    bool get_antenna_enable( );
 
-    void     set_vga_gain(uint32_t value);
-    uint32_t get_vga_gain( );
+//    void     set_vga_gain(uint32_t value);
+//    uint32_t get_vga_gain( );
 
-    void     set_lna_gain(uint32_t value);
-    uint32_t get_lna_gain( );
+//    void     set_lna_gain(uint32_t value);
+//    uint32_t get_lna_gain( );
 
-    void     set_nb_samples(uint32_t value);
-    uint32_t get_nb_samples( );
+//    void     set_nb_samples(uint32_t value);
+//    uint32_t get_nb_samples( );
+
+    float IQ_max_value();
+    void  IncreaseGain();
+    void  DecreaseGain();
 
 private:
+    float IQ_max;
+
     static int rx_callback(hackrf_transfer* transfer);
     int rx_callback(unsigned char *buf, uint32_t len);
 
-    uint32_t count_samples();
+//    uint32_t count_samples();
 
 //    uint32_t ptr_read;
 //    uint32_t ptr_write;

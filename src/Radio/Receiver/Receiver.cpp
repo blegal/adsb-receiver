@@ -22,3 +22,8 @@ bool Receiver::alive()
 {
     return _alive;
 }
+
+int Receiver::RcvGain()
+{
+    return gain;
+};

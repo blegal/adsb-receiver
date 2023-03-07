@@ -143,7 +143,7 @@ const uint32_t extract_longitude(const uint8_t* vec_pack)
     uint32_t r;
     r  = ( ((uint32_t)vec_pack[ 8] & 1) << 16);
     r |= ( ((uint32_t)vec_pack[ 9]    ) <<  8);
-    r |= ( ((uint32_t)vec_pack[10]           );
+    r |=   ((uint32_t)vec_pack[10]           );
     return r;
 }
 
@@ -1100,6 +1100,7 @@ int main(int argc, char *argv[])
                             if( file_frames_dec != nullptr )
                                 fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, (float)lon, (float)lat, dist);
 
+#if 0
                             if( ptr_avion->get_latitude() != 0.0f )
                             {
                                 float diff_x = abs( ptr_avion->get_latitude()  - lat );
@@ -1107,9 +1108,13 @@ int main(int argc, char *argv[])
                                 if( (diff_x > 0.5) || (diff_y > 0.5) )
                                 {
                                     isFinished = true;
-                                    printf("CPR_format  = %d\n", CPR_format);
-                                    printf("last_lat = %d\n", last_lat);
-                                    printf("last_lon = %d\n", last_lon);
+                                    bool retest = check_crc  <112 / 8>( vec_pack.data() );
+
+                                    printf("crc_is_ok value     = %d\n", crc_is_ok);
+                                    printf("Frame CRC value     = %d\n", retest);
+                                    printf("CPR_format          = %d\n", CPR_format);
+                                    printf("last_lat            = %d\n", last_lat);
+                                    printf("last_lon            = %d\n", last_lon);
                                     printf("ptr_avion->lat_odd  = %d\n", ptr_avion->lat_odd);
                                     printf("ptr_avion->lon_odd  = %d\n", ptr_avion->lon_odd);
                                     printf("ptr_avion->lat_even = %d\n", ptr_avion->lat_even);
@@ -1117,14 +1122,33 @@ int main(int argc, char *argv[])
                                     k = length;
                                 }
                             }
-
-                            ptr_avion->set_altitude   (altitude);
-                            ptr_avion->set_GNSS_mode  (false);
-                            ptr_avion->set_latitude   (lat);
-                            ptr_avion->set_longitude  (lon);
-                            ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );
-                            
-                            ptr_avion->update_distance();
+#endif
+                            if( ptr_avion->get_latitude() != 0.0f )
+                            {
+                                const int last_dist = distance(lat, lon, ptr_avion->get_latitude(), ptr_avion->get_longitude());
+                                if( last_dist < 20 )
+                                {
+                                    ptr_avion->set_altitude   (altitude);
+                                    ptr_avion->set_GNSS_mode  (false);
+                                    ptr_avion->set_latitude   (lat);
+                                    ptr_avion->set_longitude  (lon);
+                                    ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );
+                                    ptr_avion->update_distance();
+                                }
+                                else
+                                {
+                                    // la position est vraiment louche !
+                                }
+                            }
+                            else
+                            {
+                                ptr_avion->set_altitude   (altitude);
+                                ptr_avion->set_GNSS_mode  (false);
+                                ptr_avion->set_latitude   (lat);
+                                ptr_avion->set_longitude  (lon);
+                                ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );                            
+                                ptr_avion->update_distance();
+                            }
                         }
                         //
                         //
