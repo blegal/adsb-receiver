@@ -6,12 +6,11 @@ SET(CMAKE_BUILD_TYPE Release)
 #SET (CMAKE_C_COMPILER   /usr/bin/clang)
 #SET (CMAKE_CXX_COMPILER /usr/bin/clang++)
 
-set(CMAKE_CXX_FLAGS "                   -Wall -Ofast -mcpu=native -mtune=native -Wno-unknown-pragmas")
+set(CMAKE_CXX_FLAGS "                   -Wall -Ofast -march=native -mtune=native -Wno-unknown-pragmas")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Rpass=loop-vectorize")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/local/include")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/opt/homebrew/Cellar/uhd/4.4.0.0/include")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/opt/homebrew/Cellar/hackrf/2023.01.1/include")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/opt/homebrew/Cellar/soapysdr/0.8.1_1/include")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/opt/homebrew/Cellar/boost/1.81.0_1/include")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/opt/homebrew/opt/bzip2/include")
 
@@ -25,14 +24,11 @@ set(CMAKE_EXE_LINKER_FLAGS "-L/usr/local/lib") # UHD
 #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /usr/local/Cellar/uhd/4.1.0.3/lib/libuhd.dylib") # UHD
 #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework CoreFoundation -framework IOKit") # UHD
 #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lncurses") # UHD
-#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/local/lib -lSoapySDR") # SoapySDR
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -luhd") # UHD
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lhackrf") # UHD
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lSoapySDR") # SoapySDR
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/opt/homebrew/Cellar/uhd/4.4.0.0/lib") # UHD
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/opt/homebrew/Cellar/hackrf/2023.01.1/lib") # UHD
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/opt/homebrew/Cellar/soapysdr/0.8.1_1/lib") # UHD
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/opt/homebrew/opt/bzip2/lib") # UHD
 
 set(CMAKE_CXX_STANDARD 17)
@@ -53,9 +49,6 @@ set(SOURCE_FILES
         ./src/Processing/CplxModule/Library/CplxModuleLibrary.cpp
 
         ./src/Radio/Receiver/Receiver.cpp
-        ./src/Radio/Receiver/Radio/SoapyRTLSdr/ReceiverSoapyRTLSdr.cpp
-        ./src/Radio/Receiver/Radio/SoapyHackRF/ReceiverSoapyHackRF.cpp
-        ./src/Radio/Receiver/Radio/SoapyUHD/ReceiverSoapyUHD.cpp
         ./src/Radio/Receiver/Radio/HackRF/ReceiverHackRF.cpp
         ./src/Radio/Receiver/Radio/USRP/ReceiverUSRP.cpp
         ./src/Radio/Receiver/Radio/ThreadUSRP/ReceiverThreadUSRP.cpp
@@ -74,19 +67,20 @@ set(SOURCE_FILES
 
         ./src/Export/ExportRealTime.cpp
 
-        src/Processing/PPM/PPM_demod.cpp
-        src/Processing/DataPacking/BitPacking.cpp
+        ./src/Processing/PPM/PPM_demod.cpp
+        ./src/Processing/DataPacking/BitPacking.cpp
         ./src/Processing/CRC32b/CheckCRC32b/CheckCRC32b.cpp
         ./src/Processing/CRC32b/RemoveCRC32b/RemoveCRC32b.cpp
-        src/Processing/ADSBSynchro/RemoveADSBSynchro.cpp
-        src/Processing/IQ/IQ_Removing.cpp
-        src/Processing/Sampling/DownSampling.cpp
+        ./src/Processing/ADSBSynchro/RemoveADSBSynchro.cpp
+        ./src/Processing/IQ/IQ_Removing.cpp
+        ./src/Processing/Sampling/DownSampling.cpp
         ./src/Processing/Detector/Detector.cpp
         ./src/Processing/Detector/Detector_x86/Detector_x86.cpp
         ./src/Processing/Detector/Detector_NEON/Detector_NEON_Intra.cpp
         ./src/Processing/Detector/Detector_NEON/Detector_NEON_Inter.cpp
         ./src/Processing/Detector/Detector_NEON/Detector_NEON_Accu.cpp
-        ./src/Processing/Detector/Detector_AVX2/Detector_AVX2.cpp
+        ./src/Processing/Detector/Detector_AVX2/Detector_AVX2_Inter.cpp
+        ./src/Processing/Detector/Detector_AVX2/Detector_AVX2_Intra.cpp
         ./src/Processing/Detector/Library/DetectorLibrary.cpp
 
         ./src/Tools/Avion/Avion.cpp
@@ -108,6 +102,5 @@ add_executable(rcv_adsb ${SOURCE_FILES})
 
 target_link_libraries(rcv_adsb uhd)
 target_link_libraries(rcv_adsb hackrf)
-target_link_libraries(rcv_adsb SoapySDR)
 target_link_libraries(rcv_adsb bz2)
 target_link_libraries(rcv_adsb pthread)

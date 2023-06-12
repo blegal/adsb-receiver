@@ -7,12 +7,12 @@
 #endif
 
 
-class Detector_NEON : public Detector{
+class Detector_NEON_Intra : public Detector{
 private :
     virtual void execute(float* buffer);
 
 public :
-	Detector_NEON();
+	Detector_NEON_Intra();
 
     virtual void execute(std::vector<float>* iBuffer, std::vector<float>* oBuffer);
 

@@ -1,9 +1,21 @@
 #ifndef _ReceiverFileBZ2_
 #define _ReceiverFileBZ2_
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 #include "../Receiver.hpp"
 #include <bzlib.h>
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 class ReceiverFileBZ2 : public Receiver{
 private:
     vector<uint8_t> buffer;
@@ -18,12 +30,16 @@ public :
 
     void initialize();
     bool reception(vector<complex<float  >>& cbuffer, const uint32_t coverage = 0);
-    bool reception(vector<complex<int8_t >>& cbuffer, const uint32_t coverage = 0);
-    bool reception(vector<complex<int16_t>>& cbuffer, const uint32_t coverage = 0);
     void reset();
 
     void start_engine();
     void stop_engine ();
 };
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 #endif

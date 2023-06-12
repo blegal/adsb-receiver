@@ -4,13 +4,13 @@
     #include <arm_neon.h>
 #endif
 
-Detector_NEON::Detector_NEON() : Detector(1)
+Detector_NEON_Intra::Detector_NEON_Intra() : Detector(1)
 {
 
 }
 
 
-void Detector_NEON::execute(float *buffer){
+void Detector_NEON_Intra::execute(float *buffer){
 #if defined(__ARM_NEON)
 	const float32x2_t a0 = vld1_f32(buffer +   0);
 	const float32x2_t a1 = vld1_f32(buffer +   3);
@@ -48,7 +48,7 @@ void Detector_NEON::execute(float *buffer){
 }
 
 
-void Detector_NEON::execute(std::vector<float>* iBuffer, std::vector<float>* oBuffer)
+void Detector_NEON_Intra::execute(std::vector<float>* iBuffer, std::vector<float>* oBuffer)
 {
     const uint32_t ll = iBuffer->size();
 

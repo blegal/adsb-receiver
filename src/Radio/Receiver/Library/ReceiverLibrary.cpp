@@ -6,9 +6,6 @@
 #include "../File/ReceiverFileBZ2.hpp"
 
 #include "../Radio/HackRF/ReceiverHackRF.hpp"
-#include "../Radio/SoapyHackRF/ReceiverSoapyHackRF.hpp"
-#include "../Radio/SoapyUHD/ReceiverSoapyUHD.hpp"
-#include "../Radio/SoapyRTLSdr/ReceiverSoapyRTLSdr.hpp"
 #include "../Radio/USRP/ReceiverUSRP.hpp"
 #include "../Radio/ThreadUSRP/ReceiverThreadUSRP.hpp"
 
@@ -61,28 +58,6 @@ Receiver* ReceiverLibrary::allocate(Parameters& param)
         //if( param.toInt("receiver_gain"   ) != -1 ) r->set_lna_gain  ( param.toInt("receiver_gain") );
         radio = r;
 
-    } else if(
-            (type == "radio" && iequals(module, "soapyhackrf" )) ||
-            (type == "radio" && iequals(module, "soapy_hackrf"))
-    ) {
-        ReceiverSoapyHackRF* r = new ReceiverSoapyHackRF(param.toDouble("fc"), param.toDouble("fe"));
-        if( param.toInt("hackrf_amplifier") != -1 ) r->set_amp_enable( param.toInt("hackrf_amplifier") );
-        if( param.toInt("receiver_gain")    != -1 ) r->set_vga_gain  ( param.toInt("receiver_gain") );
-        if( param.toInt("receiver_gain")    != -1 ) r->set_lna_gain  ( param.toInt("receiver_gain") );
-        radio = r;
-    //
-    //
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //
-    //
-    } else if(
-            (type == "radio" && iequals(module, "soapyrtlsdr" )) ||
-            (type == "radio" && iequals(module, "soapy_rtlsdr"))
-    ) {
-        ReceiverSoapyRTLSdr* r = new ReceiverSoapyRTLSdr(param.toDouble("fc"), param.toDouble("fe"));
-        if( param.toInt("receiver_gain")  != -1 )
-            r->set_tuner_gain( param.toDouble("receiver_gain") );
-        radio = r;
     //
     //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,14 +100,6 @@ Receiver* ReceiverLibrary::allocate(Parameters& param)
             r->set_rx_gain( param.toInt("receiver_gain") );
         radio = r;
 
-    } else if(
-            (type == "radio" && iequals(module, "soapyusrp") ) ||
-            (type == "radio" && iequals(module, "soapy_usrp"))
-            ) {
-        ReceiverSoapyUHD* r = new ReceiverSoapyUHD(param.toDouble("fc"), param.toDouble("fe"));
-        if( param.toInt("receiver_gain")  != -1 )
-            r->set_gain( param.toInt("receiver_gain") );
-        radio = r;
     //
     //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

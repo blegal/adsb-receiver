@@ -1,66 +1,84 @@
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "bugprone-reserved-identifier"
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 #include <iostream>
-
 #include <cmath>
 #include <complex>
 #include <cstring>
 #include <chrono>
 #include <bitset>
-
 #include <vector>
 #include <fstream>
-
 #include <cstdio>
 #include <cstdlib>
 #include <getopt.h>
 #include <signal.h>
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 #include "Tools/Avion/type_aircraft.hpp"
-
 #include "Tools/Parameters/Parameters.hpp"
 #include "Tools/Statistiques/Statistiques.hpp"
-
 #include "Radio/Receiver/Library/ReceiverLibrary.hpp"
-
 //
-// Les classes utiles pour exporter les données vers d'autres outils
 //
-
-    #include "Export/ExportRealTime.hpp"
-
 //
-//  CplxModule des nombres complexes => module flottant
+//////////////////////////////////////////////////////////////////////////////////////////////////
 //
-
+//
+//
+#include "Export/ExportRealTime.hpp"
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 #include "Processing/CplxModule/Library/CplxModuleLibrary.hpp"
 #include "Processing/Detector/Library/DetectorLibrary.hpp"
 #include "Processing/ADSBSynchro/RemoveADSBSynchro.hpp"
 #include "Processing/DataPacking/BitPacking.hpp"
 #include "Processing/CRC32b/CheckCRC32b/CheckCRC32b.hpp"
 #include "Processing/CRC32b/RemoveCRC32b/RemoveCRC32b.hpp"
-
-
 //
-//  Correlateur permettant de détecter le prologue des trames ADSB
 //
-
-//#include "../../src/Frame/Frame.hpp"
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 #include "Processing/Sampling/DownSampling.hpp"
 #include "Processing/PPM/PPM_demod.hpp"
-
 #include "Tools/colors.hpp"
-
 #include "tools.hpp"
-//#include "ADSBFrame.hpp"
 #include "Tools/Avion/Avion.hpp"
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 using namespace std;
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 bool isFinished = false;
-
-
 void my_ctrl_c_handler(int s)
 {
     if (isFinished == true) {
@@ -68,8 +86,13 @@ void my_ctrl_c_handler(int s)
     }
     isFinished = true;
 }
-
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 struct LLR
 {
     int index;
@@ -80,7 +103,13 @@ bool compareLLRs(const LLR a, const LLR b)
 {
     return a.value < b.value;
 }
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 int decode_ac12_field(const unsigned char *msg)
 {
     int q_bit = msg[5] & 1;
@@ -95,7 +124,41 @@ int decode_ac12_field(const unsigned char *msg)
         return 0;
     }
 }
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+void dump( std::vector<uint8_t>& vec_sync )
+{
+    const int length = vec_sync.size();
+    printf("  [");
+    for(int i = 0; i < length; i += 1)
+    {
+        if( i == 33 ) printf(" ");
+        if( i == 38 ) printf(" ");
+        if( i == 40 ) printf(" ");
+        if( i == 41 ) printf(" ");
+        if( i == 53 ) printf(" ");
+        if( i == 54 ) printf(" ");
+        if( i == 55 ) printf(" ");
+        if( i == 72 ) printf(" ");
+        if( i == 89 ) printf(" ");
+        printf("%d", vec_sync[i] );
 
+    }
+    printf("];\n");
+}
+
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 // Decode the 13 bit AC altitude field (in DF 20 and others). Returns the
 // altitude, and set 'unit' to either MODE_S_UNIT_METERS or MDOES_UNIT_FEETS.
 int decode_ac13_field(const unsigned char *msg)
@@ -119,17 +182,29 @@ int decode_ac13_field(const unsigned char *msg)
     } else {
         //*unit = MODE_S_UNIT_METERS;
         // TODO: Implement altitude when meter unit is selected.
+        return -1;
     }
     return 0;
 }
-
-/*   ============================== MAIN =========================== */
-/*
-	4 ech = 1 symb
-	1 trame = 120 symb = 480 ech
-*/
-
-const uint32_t extract_latitude(const uint8_t* vec_pack)
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+int extract_odd_even(const uint8_t* vec_pack)
+{
+    return ((vec_pack[6] >> 2) & 0x01);
+}
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+uint32_t extract_latitude(const uint8_t* vec_pack)
 {
     uint32_t r;
     r  = ( ((uint32_t)vec_pack[6] & 3) << 15);
@@ -137,8 +212,14 @@ const uint32_t extract_latitude(const uint8_t* vec_pack)
     r |= ( ((uint32_t)vec_pack[8]    ) >>  1);
     return r;
 }
-
-const uint32_t extract_longitude(const uint8_t* vec_pack)
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+uint32_t extract_longitude(const uint8_t* vec_pack)
 {
     uint32_t r;
     r  = ( ((uint32_t)vec_pack[ 8] & 1) << 16);
@@ -146,14 +227,74 @@ const uint32_t extract_longitude(const uint8_t* vec_pack)
     r |=   ((uint32_t)vec_pack[10]           );
     return r;
 }
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+int check_extract_odd_even(const uint8_t* vec_pack, const uint8_t* vec_sync)
+{
+    const int odd_even   = extract_odd_even (vec_pack         );
+    const int CPR_format = pack_bits        (vec_sync + 53,  1);
+    if( CPR_format != odd_even )
+    {
+        printf("(EE) T18 CPR_format != odd_even (%d / %d)\n", CPR_format, odd_even);
+    }
+    return odd_even;
+}
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+uint32_t check_extract_longitude(const uint8_t* vec_pack, const uint8_t* vec_sync)
+{
+    const int raw_longitude   = extract_longitude(vec_pack);
+    const int raw_longitude_2 = pack_bits(vec_sync + 71, 17);
+    if( raw_longitude != raw_longitude_2 )
+    {
+        printf("(EE) T18 raw_latitude != raw_latitude_2 (%d / %d)\n", raw_longitude, raw_longitude_2);
+    }
+    return raw_longitude;
+}
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+uint32_t check_extract_latitude(const uint8_t* vec_pack, const uint8_t* vec_sync)
+{
+    const int raw_latitude    = extract_latitude (vec_pack         );
+    const int raw_latitude_2  = pack_bits        (vec_sync + 54, 17);
+    if( raw_latitude != raw_latitude_2 )
+    {
+        printf("(EE) T18 raw_latitude != raw_latitude_2 (%d / %d)\n", raw_latitude, raw_latitude_2);
+    }
+    return raw_latitude;
+}
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 #include "brute_force/brute_force_1x.hpp"
 #include "brute_force/brute_force_2x.hpp"
 #include "brute_force/brute_force_3x.hpp"
-
-// try_brute_force_1x
-
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 const int max_level = 8;
 bool try_brute_force_llrs(
         std::vector<LLR> vec_score,
@@ -188,8 +329,13 @@ bool try_brute_force_llrs(
     }
     return false;
 }
-
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 bool try_brute_force_llrs(vector<uint8_t>& vec_pack, vector<uint8_t>& vec_demod, vector<uint8_t>& vec_sync, vector<float>& vec_down)
 {
     bool crc_brute_llr = false;
@@ -357,8 +503,13 @@ void decodeCPR(
     }
     if (lon > 180) lon -= 360;
 }
-
-
+//
+//
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
 int main(int argc, char *argv[])
 {
     printf("(II) ==================================== ADSB ====================================\n");
@@ -427,7 +578,7 @@ int main(int argc, char *argv[])
     param.set("mode_corr", "NEON_Inter"); // scalar
 #elif defined(__AVX2__)
     param.set("mode_conv", "AVX2"); // scalar
-    param.set("mode_corr", "AVX2"); // scalar
+    param.set("mode_corr", "AVX2_Inter"); // scalar
 #else
     param.set("mode_conv", "scalar"); // scalar
     param.set("mode_corr", "scalar"); // scalar
@@ -456,33 +607,32 @@ int main(int argc, char *argv[])
 
     static struct option long_options[] =
             {
-                    {"verbose",     no_argument,       NULL, 'v'},  // affiche temps sur chaque boucle Np + cplx => abs
-                    {"seuil",       required_argument, NULL, 's'},  // pour changer la valeur min de la correlation (synchro)
-                    {"np",          required_argument, NULL, 'n'},  // pour changer le nombre de boucle Np (ie nbre echantillon*200000) // Np = 10 => 0.5 s
-                    {"conv",        required_argument, NULL, 'c'}, // a partir d'un fichier
-                    {"corr",        required_argument, NULL, 'd'}, // a partir d'un fichier
-                    {"radio",       required_argument, NULL, 'r'}, // a partir d'un fichier
-                    {"file",        required_argument, NULL, 'F'}, // a partir d'un fichier
-                    {"file-stream", required_argument, NULL, 'Q'}, // a partir d'un fichier
-                    {"fc",          required_argument, NULL, 'f'}, // changer la frequence de la porteuse
-                    {"fe",          required_argument, NULL, 'e'}, // changer la frequence echantillonnage
-                    {"payload",     required_argument, NULL, 'p'}, // changer la frequence echantillonnage
-                    {"amplifier",   required_argument, NULL, 'A'}, // changer la frequence echantillonnage
-                    {"rcv_gain",    required_argument, NULL, 'L'}, // changer la frequence echantillonnage
-                    {"rcv-gain",    required_argument, NULL, 'L'}, // changer la frequence echantillonnage
-                    {"brute-force-1x",  no_argument,   NULL, '1'}, // changer la frequence echantillonnage
-                    {"brute-force-2x",  no_argument,   NULL, '2'}, // changer la frequence echantillonnage
-                    {"brute-force-3x",  no_argument,   NULL, '3'}, // changer la frequence echantillonnage
-                    {"brute-force-llr", no_argument,   NULL, 'X'}, // changer la frequence echantillonnage
-                    {"inter",       no_argument,       NULL, 'I'}, // changer la frequence echantillonnage
-                    {"intra",       no_argument,       NULL, 'i'}, // changer la frequence echantillonnage
-                    {"dump-frames", no_argument,       NULL, 'D'}, // changer la frequence echantillonnage
-                    {"ppm",         required_argument, NULL, 'P'}, // changer la frequence echantillonnage
-                    {"liste",       no_argument,       NULL, 'l'}, // changer la frequence echantillonnage
-                    {"buffer_size",     required_argument,       NULL, 'B'}, // changer la frequence echantillonnage
-
-                    {"ENSEIRB",     no_argument,       NULL, 'E'}, // changer la frequence echantillonnage
-                    {NULL, 0,                          NULL, 0}
+                    {"verbose",         no_argument,       NULL, 'v'},  // affiche temps sur chaque boucle Np + cplx => abs
+                    {"seuil",           required_argument, NULL, 's'},  // pour changer la valeur min de la correlation (synchro)
+                    {"np",              required_argument, NULL, 'n'},  // pour changer le nombre de boucle Np (ie nbre echantillon*200000) // Np = 10 => 0.5 s
+                    {"conv",            required_argument, NULL, 'c'}, // a partir d'un fichier
+                    {"corr",            required_argument, NULL, 'd'}, // a partir d'un fichier
+                    {"radio",           required_argument, NULL, 'r'}, // a partir d'un fichier
+                    {"file",            required_argument, NULL, 'F'}, // a partir d'un fichier
+                    {"file-stream",     required_argument, NULL, 'Q'}, // a partir d'un fichier
+                    {"fc",              required_argument, NULL, 'f'}, // changer la frequence de la porteuse
+                    {"fe",              required_argument, NULL, 'e'}, // changer la frequence echantillonnage
+                    {"payload",         required_argument, NULL, 'p'}, // changer la frequence echantillonnage
+                    {"amplifier",       required_argument, NULL, 'A'}, // changer la frequence echantillonnage
+                    {"rcv_gain",        required_argument, NULL, 'L'}, // changer la frequence echantillonnage
+                    {"rcv-gain",        required_argument, NULL, 'L'}, // changer la frequence echantillonnage
+                    {"brute-force-1x",  no_argument,       NULL, '1'}, // changer la frequence echantillonnage
+                    {"brute-force-2x",  no_argument,       NULL, '2'}, // changer la frequence echantillonnage
+                    {"brute-force-3x",  no_argument,       NULL, '3'}, // changer la frequence echantillonnage
+                    {"brute-force-llr", no_argument,       NULL, 'X'}, // changer la frequence echantillonnage
+                    {"inter",           no_argument,       NULL, 'I'}, // changer la frequence echantillonnage
+                    {"intra",           no_argument,       NULL, 'i'}, // changer la frequence echantillonnage
+                    {"dump-frames",     no_argument,       NULL, 'D'}, // changer la frequence echantillonnage
+                    {"ppm",             required_argument, NULL, 'P'}, // changer la frequence echantillonnage
+                    {"liste",           no_argument,       NULL, 'l'}, // changer la frequence echantillonnage
+                    {"buffer_size",     required_argument, NULL, 'B'}, // changer la frequence echantillonnage
+                    {"ENSEIRB",         no_argument,       NULL, 'E'}, // changer la frequence echantillonnage
+                    {NULL, 0,                              NULL, 0}
             };
 
 
@@ -708,11 +858,11 @@ int main(int argc, char *argv[])
     std::vector<uint8_t> buff_6;
     std::vector<uint8_t> buff_7;
 
-    const int overSampling    =   2;
-    const int payload_nBytes  =  14;
-    const int payload_nBits   = 8 * payload_nBytes;             // 112
-    const int frame_nBits     = 8 + payload_nBits;              // 120
-    const int modulation_nIQs = 2 * frame_nBits;                // 240
+    const int overSampling    =  2;
+    const int payload_nBytes  = 14;
+    const int payload_nBits   =  8 * payload_nBytes;             // 112
+    const int frame_nBits     =  8 + payload_nBits;              // 120
+    const int modulation_nIQs =  2 * frame_nBits;                // 240
     const int oversample_nIQs = overSampling * modulation_nIQs; // 480
 
     vector<float>   vec_data (480);
@@ -820,8 +970,6 @@ int main(int argc, char *argv[])
         if (error_n == false) // Cela signifie que l'on a rencontré une erreur lors de la
             continue;         // reception des echantillons
 
-//        continue;
-
         //
         // CALCUL DU MODULE DES VOIES (I,Q)
         //
@@ -859,10 +1007,10 @@ int main(int argc, char *argv[])
                 for (int x = 0; x < vec_data.size(); x += 1)    // On extrait les 120 bits (x2) du vecteur
                     vec_data[x] = buffer_abs[x + k];            // d'echantillons (modules complexes de IQ)
 
-                o_down.execute(vec_data,  vec_down);    // 480 values => 240 values
+                o_down.execute(vec_data,  vec_down );    // 480 values => 240 values
                 o_ppm.execute (vec_down,  vec_demod);       // 240 values => 120 bits
-                o_sync.execute(vec_demod, vec_sync);        // 112 bits
-                o_pack.execute(vec_sync,  vec_pack);     // 15 octets
+                o_sync.execute(vec_demod, vec_sync );        // 112 bits
+                o_pack.execute(vec_sync,  vec_pack );     // 15 octets
 
                 bool crc_is_ok = check_crc  <112 / 8>( vec_pack.data() );
                 if( crc_is_ok )
@@ -881,19 +1029,27 @@ int main(int argc, char *argv[])
                 crc_is_ok |= crc_brute_1x;
 
                 bool crc_brute_2x = false;
+#if 1
                 if ( (crc_is_ok == false) && (brute_force_2x == true) )
                 {
                     crc_brute_2x = try_brute_force_2x( vec_pack, vec_demod, vec_sync );
                     if( crc_brute_2x ) stats.validated_crc_brute_2x();
+                    printf("On est passe ici (%s %d)\n", __FILE__, __LINE__);
+                    exit( EXIT_FAILURE );
                 }
+#endif
                 crc_is_ok |= crc_brute_2x;
 
                 bool crc_brute_3x = false;
+#if 1
                 if ( (crc_is_ok == false) && (brute_force_3x == true) )
                 {
                     crc_brute_3x = try_brute_force_3x( vec_pack, vec_demod, vec_sync );
                     if( crc_brute_3x ) stats.validated_crc_brute_3x();
+                    printf("On est passe ici (%s %d)\n", __FILE__, __LINE__);
+                    exit( EXIT_FAILURE );
                 }
+#endif
                 crc_is_ok |= crc_brute_3x;
 
 //                bool crc_brute_llr = false;
@@ -1020,54 +1176,27 @@ int main(int argc, char *argv[])
                         //
                         if( (type_frame >= 9) && (type_frame <= 18) )
                         {
-                            const int32_t upper = pack_bits(vec_sync.data() + 40, 7);
-                            const int32_t incr  = pack_bits(vec_sync.data() + 47, 1);
-                            const int32_t lower = pack_bits(vec_sync.data() + 48, 4);
-                            int32_t altitude = (upper << 4) | lower;
-                            altitude = ( incr == 1) ? (altitude * 25 - 1000) : 0;
-
-                            // NEW BLG
-                            const int new_altitude = decode_ac12_field( vec_pack.data() );
-                            if( altitude != new_altitude )
-                                printf("Error in altitude computation (%d %d)\n",  altitude, new_altitude);
-                            // END NEW BLG
-
                             //
-                            // On extrait les informations de la trame
-                            //
-                            const int32_t CPR_format = pack_bits      (vec_sync.data() + 53,  1);
-                            const float f_latitude   = pack_bits_float(vec_sync.data() + 54, 17);//(float)enc_latitude  / 131072.0; // divise par 2^17
-                            const float f_longitude  = pack_bits_float(vec_sync.data() + 71, 17);//(float)enc_longitude / 131072.0; // divise par 2^17
+                            const int altitude = decode_ac12_field( vec_pack.data() );
 
-                            // NEW BLG
-////
-                            const int raw_latitude    = extract_latitude (vec_pack.data()); //vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
-                            const int raw_longitude   = extract_longitude(vec_pack.data()); //((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
-                            const int raw_latitude_2  = pack_bits(vec_sync.data() + 54, 17);
-                            const int raw_longitude_2 = pack_bits(vec_sync.data() + 71, 17);
-
-                            if( raw_latitude != raw_latitude_2 )
-                            {
-                                printf("(EE) raw_latitude != raw_latitude_2 (%d / %d)\n", raw_latitude, raw_latitude_2);
-                            }
-                            if( raw_longitude != raw_longitude_2 )
-                            {
-                                printf("(EE) raw_latitude != raw_latitude_2 (%d / %d)\n", raw_longitude, raw_longitude_2);
-                            }
-/////
+                            const int odd_even        = check_extract_odd_even ( vec_pack.data(), vec_sync.data() );
+                            const int raw_latitude    = check_extract_latitude ( vec_pack.data(), vec_sync.data() );
+                            const int raw_longitude   = check_extract_longitude( vec_pack.data(), vec_sync.data() );
 
                             int last_lon, last_lat;
                             double lon, lat;
-                            if( CPR_format == 0 ) // EVEN frame
+                            if( odd_even == 0 ) // EVEN frame
                             {
                                 last_lon = ptr_avion->lon_even;
                                 last_lat = ptr_avion->lat_even;
                                 ptr_avion->lat_even = raw_latitude;
                                 ptr_avion->lon_even = raw_longitude;
-                                if( (ptr_avion->lat_odd == 0) || (ptr_avion->lon_odd == 0) )
+                                if( 1 ) //(ptr_avion->lat_odd == 0) || (ptr_avion->lon_odd == 0) )
                                 {
-                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 CPR_format);
-                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, CPR_format);
+                                    const float f_latitude   = pack_bits_float(vec_sync.data() + 54, 17);
+                                    const float f_longitude  = pack_bits_float(vec_sync.data() + 71, 17);
+                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 odd_even);
+                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, odd_even);
                                 }
                                 else
                                 {
@@ -1080,10 +1209,12 @@ int main(int argc, char *argv[])
                                 last_lat = ptr_avion->lat_odd;
                                 ptr_avion->lat_odd = raw_latitude;
                                 ptr_avion->lon_odd = raw_longitude;
-                                if( (ptr_avion->lat_even == 0) || (ptr_avion->lon_even == 0) )
+                                if( 1 ) // (ptr_avion->lat_even == 0) || (ptr_avion->lon_even == 0) )
                                 {
-                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 CPR_format);
-                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, CPR_format);
+                                    const float f_latitude   = pack_bits_float(vec_sync.data() + 54, 17);
+                                    const float f_longitude  = pack_bits_float(vec_sync.data() + 71, 17);
+                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 odd_even);
+                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, odd_even);
                                 }
                                 else
                                 {
@@ -1095,10 +1226,10 @@ int main(int argc, char *argv[])
                             const int32_t dist = distance(lat, lon, ref_latitude, ref_longitude);
 
                             if (dump_decoded_frame && (dump_resume == false)) {
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, (float)lon, (float)lat, dist, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, odd_even, (float)lon, (float)lat, dist, crc_show);
                             }
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, (float)lon, (float)lat, dist);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, odd_even, (float)lon, (float)lat, dist);
 
 #if 0
                             if( ptr_avion->get_latitude() != 0.0f )
@@ -1107,7 +1238,7 @@ int main(int argc, char *argv[])
                                 float diff_y = abs( ptr_avion->get_longitude() - lon );
                                 if( (diff_x > 0.5) || (diff_y > 0.5) )
                                 {
-                                    isFinished = true;
+//                                  isFinished = true;
                                     bool retest = check_crc  <112 / 8>( vec_pack.data() );
 
                                     printf("crc_is_ok value     = %d\n", crc_is_ok);
@@ -1119,14 +1250,24 @@ int main(int argc, char *argv[])
                                     printf("ptr_avion->lon_odd  = %d\n", ptr_avion->lon_odd);
                                     printf("ptr_avion->lat_even = %d\n", ptr_avion->lat_even);
                                     printf("ptr_avion->lon_even = %d\n", ptr_avion->lon_even);
-                                    k = length;
+//                                  k = length;
                                 }
                             }
 #endif
+#if 1
+                            ptr_avion->set_altitude   (altitude);
+                            ptr_avion->set_GNSS_mode  (false);
+                            ptr_avion->set_latitude   (lat);
+                            ptr_avion->set_longitude  (lon);
+                            ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );
+                            ptr_avion->update_distance();
+#else
+
                             if( ptr_avion->get_latitude() != 0.0f )
                             {
                                 const int last_dist = distance(lat, lon, ptr_avion->get_latitude(), ptr_avion->get_longitude());
-                                if( last_dist < 20 )
+                                const int maxi_dist = 40;//1.0 * ptr_avion->last_update();
+                                if( last_dist < maxi_dist )
                                 {
                                     ptr_avion->set_altitude   (altitude);
                                     ptr_avion->set_GNSS_mode  (false);
@@ -1149,6 +1290,7 @@ int main(int argc, char *argv[])
                                 ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );                            
                                 ptr_avion->update_distance();
                             }
+#endif
                         }
                         //
                         //
@@ -1220,38 +1362,36 @@ int main(int argc, char *argv[])
                             }
                             altitude = altitude * 25 - 1000;
 
-                            const int32_t CPR_format  = pack_bits      (vec_sync.data() + 53, 1);
-                            const float f_latitude    = pack_bits_float(vec_sync.data() + 54, 17);//(float)enc_latitude  / 131072.0; // divise par 2^17
-                            const float f_longitude   = pack_bits_float(vec_sync.data() + 71, 17);//(float)enc_longitude / 131072.0; // divise par 2^17
-
+                            int nAlt = decode_ac13_field( vec_pack.data() );
+                            if( altitude != nAlt )
+                            {
+                                printf("(EE) altitude != nAlt (%d / %d)\n", altitude, nAlt);
+                                printf("(EE) altitude != nAlt (%d / %d)\n", altitude, nAlt);
+                                printf("(EE) altitude != nAlt (%d / %d)\n", altitude, nAlt);
+                                printf("(EE) altitude != nAlt (%d / %d)\n", altitude, nAlt);
+                                printf("(EE) altitude != nAlt (%d / %d)\n", altitude, nAlt);
+                                printf("(EE) altitude != nAlt (%d / %d)\n", altitude, nAlt);
+                                printf("(EE) altitude != nAlt (%d / %d)\n", altitude, nAlt);
+                                printf("(EE) altitude != nAlt (%d / %d)\n", altitude, nAlt);
+                            }
 
                             // NEW BLG
 ////
-                            const int raw_latitude    = extract_latitude (vec_pack.data()); //vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
-                            const int raw_longitude   = extract_longitude(vec_pack.data()); //((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
-                            const int raw_latitude_2  = pack_bits(vec_sync.data() + 54, 17);
-                            const int raw_longitude_2 = pack_bits(vec_sync.data() + 71, 17);
+                            const int odd_even        = check_extract_odd_even ( vec_pack.data(), vec_sync.data() );
+                            const int raw_latitude    = check_extract_latitude ( vec_pack.data(), vec_sync.data() );
+                            const int raw_longitude   = check_extract_longitude( vec_pack.data(), vec_sync.data() );
 
-                            if( raw_latitude != raw_latitude_2 )
-                            {
-                                printf("(EE) raw_latitude != raw_latitude_2 (%d / %d)\n", raw_latitude, raw_latitude_2);
-                            }
-                            if( raw_longitude != raw_longitude_2 )
-                            {
-                                printf("(EE) raw_latitude != raw_latitude_2 (%d / %d)\n", raw_longitude, raw_longitude_2);
-                            }
-/////
-//                          const int   raw_latitude    = ((vec_pack[6] & 3) << 15) | (vec_pack[7] << 7) | (vec_pack[ 8] >> 1);
-//                          const int   raw_longitude   = ((vec_pack[8] & 1) << 16) | (vec_pack[9] << 8) |  vec_pack[10];
                             double lon, lat;
-                            if( CPR_format == 0 ) // EVEN frame
+                            if( odd_even == 0 ) // EVEN frame
                             {
                                 ptr_avion->lat_even = raw_latitude;
                                 ptr_avion->lon_even = raw_longitude;
-                                if( (ptr_avion->lat_odd == 0) || (ptr_avion->lon_odd == 0) )
+                                if( 1 ) // (ptr_avion->lat_odd == 0) || (ptr_avion->lon_odd == 0) )
                                 {
-                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 CPR_format);
-                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, CPR_format);
+                                    const float f_latitude   = pack_bits_float(vec_sync.data() + 54, 17);
+                                    const float f_longitude  = pack_bits_float(vec_sync.data() + 71, 17);
+                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 odd_even);
+                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, odd_even);
                                 }
                                 else
                                 {
@@ -1262,10 +1402,12 @@ int main(int argc, char *argv[])
                             {
                                 ptr_avion->lat_odd = raw_latitude;
                                 ptr_avion->lon_odd = raw_longitude;
-                                if( (ptr_avion->lat_even == 0) || (ptr_avion->lon_even == 0) )
+                                if( 1 ) // (ptr_avion->lat_even == 0) || (ptr_avion->lon_even == 0) )
                                 {
-                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 CPR_format);
-                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, CPR_format);
+                                    const float f_latitude   = pack_bits_float(vec_sync.data() + 54, 17);
+                                    const float f_longitude  = pack_bits_float(vec_sync.data() + 71, 17);
+                                    lat    = ComputeLatitude (f_latitude,  ref_latitude,                 odd_even);
+                                    lon    = ComputeLongitude(f_longitude, lat,           ref_longitude, odd_even);
                                 }
                                 else
                                 {
@@ -1277,15 +1419,46 @@ int main(int argc, char *argv[])
                             const int32_t dist = distance(lat, lon, ref_latitude, ref_longitude);
 
                             if (dump_decoded_frame && (dump_resume == false))
-                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, (float)lon, (float)lat, dist, crc_show);
+                                printf("| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  %s |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, odd_even, (float)lon, (float)lat, dist, crc_show);
                             if( file_frames_dec != nullptr )
-                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, CPR_format, (float)lon, (float)lat, dist);
-                            ptr_avion->set_altitude (altitude);
-                            ptr_avion->set_GNSS_mode(true);
+                                fprintf(file_frames_dec, "| %5d | %5d | %6d | %1.4f |  %2d | %06X |  %2d |          |   %6d |    %d |  %8.5f |  %8.5f | %3d |         |         |       |  OK |\n", stats.validated_crc(), acq_counter, k, score, df_value, oaci_value, type_frame, (int32_t)altitude, odd_even, (float)lon, (float)lat, dist);
+
+#if 1
+                            ptr_avion->set_altitude   (altitude);
+                            ptr_avion->set_GNSS_mode  (true);
                             ptr_avion->set_latitude   (lat);
                             ptr_avion->set_longitude  (lon);
                             ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );
                             ptr_avion->update_distance();
+#else
+                            if( ptr_avion->get_latitude() != 0.0f )
+                            {
+                                const int last_dist = distance(lat, lon, ptr_avion->get_latitude(), ptr_avion->get_longitude());
+                                const int maxi_dist = 40;//1.0 * ptr_avion->last_update();
+                                if( last_dist < maxi_dist )
+                                {
+                                    ptr_avion->set_altitude   (altitude);
+                                    ptr_avion->set_GNSS_mode  (true);
+                                    ptr_avion->set_latitude   (lat);
+                                    ptr_avion->set_longitude  (lon);
+                                    ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );
+                                    ptr_avion->update_distance();
+                                }
+                                else
+                                {
+                                    // la position est vraiment louche !
+                                }
+                            }
+                            else
+                            {
+                                ptr_avion->set_altitude   (altitude);
+                                ptr_avion->set_GNSS_mode  (true);
+                                ptr_avion->set_latitude   (lat);
+                                ptr_avion->set_longitude  (lon);
+                                ptr_avion->set_reliability( !(crc_brute_1x || crc_brute_2x || crc_brute_3x) );                            
+                                ptr_avion->update_distance();
+                            }
+#endif  
                         }
                         //
                         //

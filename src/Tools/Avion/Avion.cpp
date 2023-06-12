@@ -276,7 +276,7 @@ int32_t Avion::last_update()
 {
     const auto curr   = std::chrono::system_clock::now();
     const int32_t seconds = std::chrono::duration_cast<std::chrono::seconds>(curr - lastUpdate).count();
-    return seconds;
+    return std::round( seconds );
 }
 
 void Avion::print()
